@@ -1,16 +1,16 @@
-import { supabase } from '@/lib/supabase'
+import EtfList from '@/app/components/etf-list'
 
-export default async function Home() {
-  const { data, error } = await supabase
-    .from('etfs')
-    .select('*')
-
-  console.log(data)
-
+export default function Home() {
   return (
-    <div>
-      <h1>ETF List</h1>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
-    </div>
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mb-8 rounded-3xl border border-black/10 bg-white/70 p-6 shadow-sm backdrop-blur-sm sm:p-8">
+        <p className="text-xs font-semibold tracking-[0.2em] text-slate-500">WEEK 3</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">ETF List</h1>
+        <p className="mt-2 text-sm text-slate-600 sm:text-base">
+          Search and browse ETF symbols from Supabase via the ETF list API.
+        </p>
+      </section>
+      <EtfList />
+    </main>
   )
 }
