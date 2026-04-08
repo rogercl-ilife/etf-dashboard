@@ -49,11 +49,29 @@ export async function GET(_: Request, { params }: Params) {
     return NextResponse.json({ error: dividendsError.message }, { status: 500 })
   }
 
+  const dividendsRows = dividends || []
+  const oneYearAgo = new Date()
+  oneYearAgo.setUTCDate(oneYearAgo.getUTCDate() - 365)
+
+  const ttmRows = dividendsRows.filter((row) => {
+    const exDate = new Date(row.ex_date)
+    return !Number.isNaN(exDate.getTime()) && exDate >= oneYearAgo && row.amount != null
+  })
+
+  const ttmDividendAmount = ttmRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  const latestClose = snapshot?.latest_close != null ? Number(snapshot.latest_close) : null
+  const ttmYieldPct = latestClose && latestClose > 0 ? (ttmDividendAmount / latestClose) * 100 : null
+
   return NextResponse.json({
     data: {
       ...etf,
       snapshot: snapshot || null,
-      dividends: dividends || [],
+      dividends: dividendsRows,
+      kpis: {
+        ttm_dividend_amount: ttmDividendAmount > 0 ? Number(ttmDividendAmount.toFixed(4)) : null,
+        ttm_dividend_count: ttmRows.length,
+        ttm_dividend_yield_pct: ttmYieldPct != null ? Number(ttmYieldPct.toFixed(4)) : null,
+      },
     },
   })
 }

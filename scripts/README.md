@@ -35,6 +35,21 @@ Notes:
 
 - Daily: `.github/workflows/market-data-daily.yml` runs `--all-50 --period 3mo`
 - Weekly backfill: `.github/workflows/market-data-weekly-backfill.yml` runs `--all-50 --period 5y`
+- Weekly metadata refresh: same weekly workflow also runs `python update_etf_metadata.py --all-50`
+
+## Metadata Update Script
+
+Manual run:
+
+```bash
+python update_etf_metadata.py --all-50
+```
+
+Dry-run:
+
+```bash
+python update_etf_metadata.py --all-50 --dry-run
+```
 
 Required GitHub repository secrets:
 

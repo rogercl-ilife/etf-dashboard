@@ -31,6 +31,11 @@ type EtfDetail = {
     pay_date: string | null
     amount: number | null
   }>
+  kpis: {
+    ttm_dividend_amount: number | null
+    ttm_dividend_count: number
+    ttm_dividend_yield_pct: number | null
+  }
 }
 
 type ChartPoint = {
@@ -146,6 +151,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
   const chartTitle = useMemo(() => `${symbol} Price Trend`, [symbol])
   const snapshot = detail?.snapshot
+  const kpis = detail?.kpis
 
   return (
     <section className="space-y-6">
@@ -175,6 +181,27 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
             <p className={`text-sm ${snapshot?.change_pct != null && snapshot.change_pct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {formatCurrency(snapshot?.change)} ({formatPct(snapshot?.change_pct)})
             </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Day Change</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(snapshot?.change_pct)}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Expense Ratio</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">
+              {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : 'N/A'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">TTM Dividend</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatCurrency(kpis?.ttm_dividend_amount)}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">TTM Yield</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.ttm_dividend_yield_pct)}</p>
           </div>
         </div>
       </article>
@@ -231,6 +258,20 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
         <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold text-slate-900">Dividends</h2>
           <p className="mt-1 text-sm text-slate-500">Recent distribution records.</p>
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">TTM Total Dividend</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{formatCurrency(kpis?.ttm_dividend_amount)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">TTM Payout Count</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{kpis?.ttm_dividend_count ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">TTM Yield (vs latest close)</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.ttm_dividend_yield_pct)}</p>
+            </div>
+          </div>
 
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-left text-sm">

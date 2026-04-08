@@ -7,6 +7,10 @@ Two GitHub Actions workflows are included:
 - `.github/workflows/market-data-daily.yml`
 - `.github/workflows/market-data-weekly-backfill.yml`
 
+The weekly workflow includes both:
+- 5Y market data backfill
+- ETF metadata refresh (`update_etf_metadata.py`)
+
 ### GitHub Secrets
 
 Set these repository secrets:

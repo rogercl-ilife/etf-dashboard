@@ -14,3 +14,6 @@ web/.next/
 
 # macOS
 .DS_Store
+
+# editor temp
+*.swp
