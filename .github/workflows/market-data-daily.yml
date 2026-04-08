@@ -30,4 +30,4 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          python update_market_data.py --all-50 --period 3mo
+          python update_market_data.py --all --period 3mo

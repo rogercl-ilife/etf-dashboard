@@ -60,16 +60,15 @@ def log_job(client: Client, job_name: str, status: str, message: str) -> None:
     ).execute()
 
 
-def get_symbols(client: Client, symbols_arg: Optional[str], limit: int) -> List[str]:
+def get_symbols(client: Client, symbols_arg: Optional[str], limit: Optional[int]) -> List[str]:
     if symbols_arg:
         return [s.strip().upper() for s in symbols_arg.split(",") if s.strip()]
-    resp = (
-        client.table("etfs")
-        .select("symbol")
-        .order("symbol")
-        .limit(limit)
-        .execute()
-    )
+
+    query = client.table("etfs").select("symbol").order("symbol")
+    if limit is not None:
+        query = query.limit(limit)
+
+    resp = query.execute()
     return [row["symbol"] for row in resp.data]
 
 
@@ -200,7 +199,8 @@ def run(symbols: List[str], period: str, dry_run: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Manual ETF market data updater (yfinance -> Supabase)")
     parser.add_argument("--symbols", type=str, default=None, help="CSV symbols. e.g. VOO,SPY,QQQ")
-    parser.add_argument("--limit", type=int, default=1, help="Read first N symbols from etfs table")
+    parser.add_argument("--limit", type=int, default=50, help="Read first N symbols from etfs table")
+    parser.add_argument("--all", action="store_true", help="Use all symbols from etfs table")
     parser.add_argument("--all-50", action="store_true", help="Shortcut: use first 50 symbols from etfs")
     parser.add_argument("--period", type=str, default="1mo", help="yfinance history period. e.g. 1mo,3mo,1y")
     parser.add_argument("--dry-run", action="store_true", help="Fetch only, do not write to DB")
@@ -209,7 +209,7 @@ def main() -> int:
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         raise RuntimeError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in scripts/.env")
 
-    limit = 50 if args.all_50 else args.limit
+    limit: Optional[int] = None if args.all else (50 if args.all_50 else args.limit)
     client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     symbols = get_symbols(client, args.symbols, limit)
     if not symbols:

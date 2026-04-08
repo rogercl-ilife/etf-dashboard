@@ -14,16 +14,16 @@ source ../venv/bin/activate
 python update_market_data.py --symbols VOO --period 1mo
 ```
 
-3) Expand to 50 ETFs
+3) Update all ETFs in etfs table
 
 ```bash
-python update_market_data.py --all-50 --period 1mo
+python update_market_data.py --all --period 1mo
 ```
 
 4) Dry-run (fetch only, no DB writes)
 
 ```bash
-python update_market_data.py --all-50 --period 1mo --dry-run
+python update_market_data.py --all --period 1mo --dry-run
 ```
 
 Notes:
@@ -33,22 +33,22 @@ Notes:
 
 ## Week 5: GitHub Actions
 
-- Daily: `.github/workflows/market-data-daily.yml` runs `--all-50 --period 3mo`
-- Weekly backfill: `.github/workflows/market-data-weekly-backfill.yml` runs `--all-50 --period 5y`
-- Weekly metadata refresh: same weekly workflow also runs `python update_etf_metadata.py --all-50`
+- Daily: `.github/workflows/market-data-daily.yml` runs `--all --period 3mo`
+- Weekly backfill: `.github/workflows/market-data-weekly-backfill.yml` runs `--all --period 5y`
+- Weekly metadata refresh: same weekly workflow also runs `python update_etf_metadata.py --all`
 
 ## Metadata Update Script
 
 Manual run:
 
 ```bash
-python update_etf_metadata.py --all-50
+python update_etf_metadata.py --all
 ```
 
 Dry-run:
 
 ```bash
-python update_etf_metadata.py --all-50 --dry-run
+python update_etf_metadata.py --all --dry-run
 ```
 
 Required GitHub repository secrets:

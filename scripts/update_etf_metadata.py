@@ -35,8 +35,16 @@ def normalize_expense_ratio(value: Any) -> Optional[float]:
     raw = to_float(value)
     if raw is None:
         return None
-    # yfinance often returns decimals (e.g. 0.0003). Store as percentage.
-    return raw * 100 if raw <= 1 else raw
+    # Normalize to percentage points for UI display.
+    # Common cases from providers:
+    # - 0.03 means 0.03%
+    # - 0.0003 means 0.03% (decimal fraction)
+    # We only scale tiny decimals to avoid multiplying normal ETF ER values.
+    if raw < 0:
+        return None
+    if raw < 0.01:
+        return raw * 100
+    return raw
 
 
 def parse_inception_date(value: Any) -> Optional[str]:
@@ -61,11 +69,15 @@ def parse_inception_date(value: Any) -> Optional[str]:
     return None
 
 
-def get_symbols(client: Client, symbols_arg: Optional[str], limit: int) -> List[str]:
+def get_symbols(client: Client, symbols_arg: Optional[str], limit: Optional[int]) -> List[str]:
     if symbols_arg:
         return [s.strip().upper() for s in symbols_arg.split(',') if s.strip()]
 
-    resp = client.table(ETFS_TABLE).select('symbol').order('symbol').limit(limit).execute()
+    query = client.table(ETFS_TABLE).select('symbol').order('symbol')
+    if limit is not None:
+        query = query.limit(limit)
+
+    resp = query.execute()
     return [row['symbol'] for row in resp.data]
 
 
@@ -143,6 +155,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description='Update ETF metadata from yfinance to Supabase etfs table')
     parser.add_argument('--symbols', type=str, default=None, help='CSV symbols. e.g. VOO,SPY,QQQ')
     parser.add_argument('--limit', type=int, default=50, help='Read first N symbols from etfs table')
+    parser.add_argument('--all', action='store_true', help='Use all symbols from etfs table')
     parser.add_argument('--all-50', action='store_true', help='Shortcut: use first 50 symbols from etfs')
     parser.add_argument('--dry-run', action='store_true', help='Fetch only, do not write to DB')
     parser.add_argument('--sleep-sec', type=float, default=0.25, help='Sleep between symbols to reduce API pressure')
@@ -151,7 +164,7 @@ def main() -> int:
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         raise RuntimeError('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in scripts/.env')
 
-    limit = 50 if args.all_50 else args.limit
+    limit: Optional[int] = None if args.all else (50 if args.all_50 else args.limit)
     client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     symbols = get_symbols(client, args.symbols, limit)
 
