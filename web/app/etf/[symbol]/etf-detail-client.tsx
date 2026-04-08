@@ -81,6 +81,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [loadingChart, setLoadingChart] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [refreshToken, setRefreshToken] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -111,7 +112,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
     fetchDetail()
     return () => controller.abort()
-  }, [symbol])
+  }, [symbol, refreshToken])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -141,16 +142,27 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
     fetchChart()
     return () => controller.abort()
-  }, [range, symbol])
+  }, [range, symbol, refreshToken])
 
   const chartTitle = useMemo(() => `${symbol} Price Trend`, [symbol])
   const snapshot = detail?.snapshot
 
   return (
     <section className="space-y-6">
-      {error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
+      {error ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => setRefreshToken((v) => v + 1)}
+            className="rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
-      <article className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.15em] text-slate-500">ETF DETAIL</p>
@@ -167,16 +179,16 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
         </div>
       </article>
 
-      <article className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">{chartTitle}</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="-mx-1 flex w-full gap-2 overflow-x-auto px-1 sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0">
             {RANGE_OPTIONS.map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setRange(option)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   range === option
                     ? 'border-slate-900 bg-slate-900 text-white'
                     : 'border-slate-300 bg-white text-slate-600 hover:border-slate-500 hover:text-slate-900'
@@ -188,7 +200,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           </div>
         </div>
 
-        <div className="h-72 w-full">
+        <div className="h-60 w-full sm:h-72">
           {loadingChart ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-500">Loading chart...</div>
           ) : chart.length === 0 ? (
@@ -216,7 +228,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
       </article>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <article className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm lg:col-span-2">
+        <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold text-slate-900">Dividends</h2>
           <p className="mt-1 text-sm text-slate-500">Recent distribution records.</p>
 
@@ -246,7 +258,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           ) : null}
         </article>
 
-        <article className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+        <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-900">Basic Info</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <div>

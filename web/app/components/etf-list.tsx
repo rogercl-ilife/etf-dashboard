@@ -18,6 +18,7 @@ export default function EtfList() {
   const [items, setItems] = useState<EtfRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [refreshToken, setRefreshToken] = useState(0)
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedQuery(query.trim()), 250)
@@ -60,7 +61,7 @@ export default function EtfList() {
 
     fetchEtfs()
     return () => controller.abort()
-  }, [debouncedQuery])
+  }, [debouncedQuery, refreshToken])
 
   const statsText = useMemo(() => {
     if (loading) return 'Loading...'
@@ -86,10 +87,33 @@ export default function EtfList() {
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => setRefreshToken((v) => v + 1)}
+            className="rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+          >
+            Retry
+          </button>
+        </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {loading && items.length === 0
+          ? Array.from({ length: 6 }).map((_, idx) => (
+              <article key={`skeleton-${idx}`} className="animate-pulse rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+                <div className="h-3 w-16 rounded bg-slate-200" />
+                <div className="mt-3 h-4 w-2/3 rounded bg-slate-200" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-slate-200" />
+                <div className="mt-4 flex gap-2">
+                  <div className="h-6 w-24 rounded-full bg-slate-200" />
+                  <div className="h-6 w-20 rounded-full bg-slate-200" />
+                </div>
+              </article>
+            ))
+          : null}
+
         {items.map((etf) => (
           <Link key={etf.symbol} href={`/etf/${etf.symbol}`} className="group block">
             <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md">
@@ -106,6 +130,12 @@ export default function EtfList() {
           </Link>
         ))}
       </div>
+
+      {!loading && !error && items.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">
+          No ETF matched your keyword.
+        </div>
+      ) : null}
     </section>
   )
 }
