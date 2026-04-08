@@ -23,7 +23,7 @@ export default function RootLayout({
         {children}
         <footer className="mt-10 border-t border-black/10 bg-white/50">
           <div className="mx-auto w-full max-w-6xl px-4 py-4 text-xs text-slate-500 sm:px-6 lg:px-8">
-            Week 3 milestone: ETF list page online.
+            Week 4 milestone: ETF detail page with trend chart and dividend data.
           </div>
         </footer>
       </body>

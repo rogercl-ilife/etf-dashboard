@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 
 type EtfRow = {
   symbol: string
@@ -90,17 +91,19 @@ export default function EtfList() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((etf) => (
-          <article key={etf.symbol} className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold tracking-wide text-slate-500">{etf.symbol}</p>
-            <h2 className="mt-1 text-base font-semibold text-slate-900">{etf.name || etf.symbol}</h2>
-            <p className="mt-1 text-sm text-slate-600">{etf.issuer || 'Issuer N/A'}</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-              <span className="rounded-full bg-slate-100 px-2 py-1">{etf.category || 'Category N/A'}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-1">
-                ER: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : 'N/A'}
-              </span>
-            </div>
-          </article>
+          <Link key={etf.symbol} href={`/etf/${etf.symbol}`} className="group block">
+            <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md">
+              <p className="text-xs font-semibold tracking-wide text-slate-500">{etf.symbol}</p>
+              <h2 className="mt-1 text-base font-semibold text-slate-900">{etf.name || etf.symbol}</h2>
+              <p className="mt-1 text-sm text-slate-600">{etf.issuer || 'Issuer N/A'}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2 py-1">{etf.category || 'Category N/A'}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-1">
+                  ER: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : 'N/A'}
+                </span>
+              </div>
+            </article>
+          </Link>
         ))}
       </div>
     </section>
