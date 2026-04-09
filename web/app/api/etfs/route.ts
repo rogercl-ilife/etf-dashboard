@@ -1,6 +1,22 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+type EtfRow = {
+  symbol: string
+  name: string | null
+  issuer: string | null
+  category: string | null
+  expense_ratio: number | null
+  inception_date: string | null
+}
+
+type SnapshotRow = {
+  symbol: string
+  return_1y_pct: number | null
+  return_3y_pct: number | null
+  return_5y_pct: number | null
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const q = (searchParams.get('q') || '').trim().toUpperCase()
@@ -18,10 +34,46 @@ export async function GET(request: Request) {
   }
 
   const { data, error } = await query
-
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ data })
+  const etfs = (data || []) as EtfRow[]
+  if (etfs.length === 0) {
+    return NextResponse.json({ data: [] })
+  }
+
+  const symbols = etfs.map((row) => row.symbol)
+  const snapshotsResp = await supabase
+    .from('etf_snapshots')
+    .select('symbol,return_1y_pct,return_3y_pct,return_5y_pct')
+    .in('symbol', symbols)
+
+  let snapshots: SnapshotRow[] = []
+  if (snapshotsResp.error) {
+    if (!snapshotsResp.error.message.includes('return_1y_pct')) {
+      return NextResponse.json({ error: snapshotsResp.error.message }, { status: 500 })
+    }
+  } else {
+    snapshots = (snapshotsResp.data || []) as SnapshotRow[]
+  }
+
+  const snapshotMap = new Map<string, SnapshotRow>()
+  for (const row of snapshots) {
+    snapshotMap.set(row.symbol, row)
+  }
+
+  const enriched = etfs.map((etf) => {
+    const snap = snapshotMap.get(etf.symbol)
+    return {
+      ...etf,
+      period_returns_pct: {
+        '1Y': snap?.return_1y_pct ?? null,
+        '3Y': snap?.return_3y_pct ?? null,
+        '5Y': snap?.return_5y_pct ?? null,
+      },
+    }
+  })
+
+  return NextResponse.json({ data: enriched })
 }

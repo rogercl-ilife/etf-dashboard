@@ -35,6 +35,11 @@ type EtfDetail = {
     ttm_dividend_amount: number | null
     ttm_dividend_count: number
     ttm_dividend_yield_pct: number | null
+    period_returns_pct: {
+      '1Y': number | null
+      '3Y': number | null
+      '5Y': number | null
+    }
   }
 }
 
@@ -202,6 +207,21 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">TTM Yield</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.ttm_dividend_yield_pct)}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">1Y Return</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['1Y'])}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">3Y Return</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['3Y'])}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">5Y Return</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['5Y'])}</p>
           </div>
         </div>
       </article>

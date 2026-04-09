@@ -10,6 +10,11 @@ type EtfRow = {
   category: string | null
   expense_ratio: number | null
   inception_date: string | null
+  period_returns_pct?: {
+    '1Y': number | null
+    '3Y': number | null
+    '5Y': number | null
+  }
 }
 
 type ViewMode = 'cards' | 'table'
@@ -32,6 +37,23 @@ function byExpense(a: number | null, b: number | null, asc: boolean) {
   const av = a == null ? (asc ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY) : a
   const bv = b == null ? (asc ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY) : b
   return asc ? av - bv : bv - av
+}
+
+const pctFmt = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+function formatPct(value?: number | null) {
+  if (value == null) return 'N/A'
+  return `${value > 0 ? '+' : ''}${pctFmt.format(value)}%`
+}
+
+function pctColor(value?: number | null) {
+  if (value == null) return 'text-slate-500'
+  if (value > 0) return 'text-emerald-700'
+  if (value < 0) return 'text-rose-700'
+  return 'text-slate-700'
 }
 
 export default function EtfList() {
@@ -251,6 +273,20 @@ export default function EtfList() {
                     ER: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : 'N/A'}
                   </span>
                 </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                    <p className="text-[10px] text-slate-500">1Y</p>
+                    <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                    <p className="text-[10px] text-slate-500">3Y</p>
+                    <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['3Y'])}`}>{formatPct(etf.period_returns_pct?.['3Y'])}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                    <p className="text-[10px] text-slate-500">5Y</p>
+                    <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</p>
+                  </div>
+                </div>
               </article>
             </Link>
           ))}
@@ -265,6 +301,9 @@ export default function EtfList() {
                 <th className="px-4 py-3 font-medium">Issuer</th>
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">ER</th>
+                <th className="px-4 py-3 font-medium">1Y</th>
+                <th className="px-4 py-3 font-medium">3Y</th>
+                <th className="px-4 py-3 font-medium">5Y</th>
               </tr>
             </thead>
             <tbody>
@@ -279,6 +318,9 @@ export default function EtfList() {
                   <td className="px-4 py-3 text-slate-600">{etf.issuer || 'N/A'}</td>
                   <td className="px-4 py-3 text-slate-600">{etf.category || 'N/A'}</td>
                   <td className="px-4 py-3 text-slate-800">{etf.expense_ratio != null ? `${etf.expense_ratio}%` : 'N/A'}</td>
+                  <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</td>
+                  <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['3Y'])}`}>{formatPct(etf.period_returns_pct?.['3Y'])}</td>
+                  <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</td>
                 </tr>
               ))}
             </tbody>
