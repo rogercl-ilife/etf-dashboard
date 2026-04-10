@@ -84,3 +84,25 @@ Custom snapshot date:
 ```bash
 python update_etf_holdings.py --all --as-of-date 2026-04-10
 ```
+
+## Week 6: User Feedback + Read Analytics
+
+Before using feedback and read-stat features in `web`, run:
+
+```sql
+-- execute in Supabase SQL Editor
+-- file: scripts/week6_feedback_analytics_setup.sql
+```
+
+This creates:
+- `user_feedback`
+- `user_read_events`
+
+## Week 7: Feedback Workflow (Inbox)
+
+To enable feedback status management (`new / in_progress / done`) for `/feedback`, run:
+
+```sql
+-- execute in Supabase SQL Editor
+-- file: scripts/week7_feedback_workflow_setup.sql
+```

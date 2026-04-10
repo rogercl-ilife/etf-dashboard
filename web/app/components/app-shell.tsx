@@ -1,30 +1,37 @@
 'use client'
 
+import Link from 'next/link'
 import { useLanguage, type Language } from './language-context'
 
-const LANG_LABELS: Record<Language, string> = {
-  en: 'English',
-  'zh-TW': '繁體中文',
-  'zh-CN': '简体中文',
-}
+const LANGUAGE_OPTIONS: Array<{ value: Language; short: string; label: string }> = [
+  { value: 'en', short: 'EN', label: 'English' },
+  { value: 'zh-TW', short: '繁', label: '繁體中文' },
+  { value: 'zh-CN', short: '简', label: '简体中文' },
+]
 
 const TEXT = {
   en: {
     appTitle: 'ETF DASHBOARD',
     techStack: 'Next.js + Tailwind + Supabase',
     language: 'Language',
+    stats: 'Read Stats',
+    feedback: 'Feedback',
     footer: 'Automated updates + mobile-ready UX.',
   },
   'zh-TW': {
     appTitle: 'ETF 儀表板',
     techStack: 'Next.js + Tailwind + Supabase',
     language: '語言',
+    stats: '閱讀統計',
+    feedback: '回饋管理',
     footer: '自動化更新與行動裝置優化體驗。',
   },
   'zh-CN': {
     appTitle: 'ETF 仪表盘',
     techStack: 'Next.js + Tailwind + Supabase',
     language: '语言',
+    stats: '阅读统计',
+    feedback: '反馈管理',
     footer: '自动化更新与移动端优化体验。',
   },
 }
@@ -41,20 +48,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <p className="text-sm font-semibold tracking-[0.12em] text-slate-700">{t.appTitle}</p>
             <p className="text-xs text-slate-500">{t.techStack}</p>
           </div>
-          <label className="flex items-center gap-2 text-xs text-slate-600">
-            <span>{t.language}</span>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
+          <div className="flex items-center gap-2">
+            <Link
+              href="/feedback"
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 transition hover:border-slate-500 hover:text-slate-900"
             >
-              {Object.entries(LANG_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+              {t.feedback}
+            </Link>
+            <Link
+              href="/stats"
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 transition hover:border-slate-500 hover:text-slate-900"
+            >
+              {t.stats}
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-600">{t.language}</span>
+              <div className="inline-flex items-center rounded-xl border border-slate-300 bg-white p-0.5">
+                {LANGUAGE_OPTIONS.map((option) => {
+                  const active = language === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setLanguage(option.value)}
+                      aria-label={option.label}
+                      title={option.label}
+                      className={`min-w-10 rounded-lg px-2 py-1 text-xs font-semibold transition ${
+                        active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {option.short}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 

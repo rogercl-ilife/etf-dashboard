@@ -16,6 +16,23 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Optional: GA4 Tracking
+
+If you want Google Analytics 4 enabled, set:
+
+```bash
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+```
+
+Notes:
+- If this variable is not set, GA4 is disabled.
+- Existing Supabase-based analytics/feedback still work without GA4.
+
+## Feedback Inbox
+
+The app includes `/feedback` for feedback triage (search/filter/status update).
+Run `scripts/week6_feedback_analytics_setup.sql` and `scripts/week7_feedback_workflow_setup.sql` first.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

@@ -21,24 +21,22 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>('en')
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     const stored = normalizeLanguage(window.localStorage.getItem(STORAGE_KEY))
-    if (stored) {
-      setLanguage(stored)
-      return
-    }
-
-    const browser = normalizeLanguage(navigator.language)
-    if (browser) {
-      setLanguage(browser)
-    }
+    const next = stored || normalizeLanguage(navigator.language) || 'en'
+    // SSR and first client render must match to avoid hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLanguage(next)
+    setInitialized(true)
   }, [])
 
   useEffect(() => {
+    if (!initialized) return
     window.localStorage.setItem(STORAGE_KEY, language)
     document.documentElement.lang = language
-  }, [language])
+  }, [language, initialized])
 
   const value = useMemo(() => ({ language, setLanguage }), [language])
 
