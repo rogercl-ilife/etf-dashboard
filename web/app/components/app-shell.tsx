@@ -13,19 +13,19 @@ const TEXT = {
     appTitle: 'ETF DASHBOARD',
     techStack: 'Next.js + Tailwind + Supabase',
     language: 'Language',
-    footer: 'Week 5 milestone: automated updates + mobile-ready UX.',
+    footer: 'Automated updates + mobile-ready UX.',
   },
   'zh-TW': {
     appTitle: 'ETF 儀表板',
     techStack: 'Next.js + Tailwind + Supabase',
     language: '語言',
-    footer: '第 5 週里程碑：自動化更新與行動裝置優化體驗。',
+    footer: '自動化更新與行動裝置優化體驗。',
   },
   'zh-CN': {
     appTitle: 'ETF 仪表盘',
     techStack: 'Next.js + Tailwind + Supabase',
     language: '语言',
-    footer: '第 5 周里程碑：自动化更新与移动端优化体验。',
+    footer: '自动化更新与移动端优化体验。',
   },
 }
 

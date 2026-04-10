@@ -57,6 +57,41 @@ def parse_iso_date(value: str) -> Optional[datetime]:
         return None
 
 
+def to_iso_date(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if hasattr(value, "date"):
+        try:
+            return value.date().isoformat()
+        except Exception:
+            pass
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            # Allow YYYY-MM-DD and datetime-like strings.
+            return datetime.fromisoformat(text.replace("Z", "+00:00")).date().isoformat()
+        except ValueError:
+            return None
+    return None
+
+
+def extract_pay_date_from_row(row: Any) -> Optional[str]:
+    candidates = ["Pay Date", "pay_date", "Payment Date", "payment_date", "Dividend Date", "dividend_date"]
+    for key in candidates:
+        try:
+            value = row.get(key)
+        except Exception:
+            value = None
+        iso = to_iso_date(value)
+        if iso:
+            return iso
+    return None
+
+
 def calc_period_returns(
     rows: List[Dict[str, Any]],
     latest_price: Optional[float] = None,
@@ -179,18 +214,19 @@ def build_dividends(symbol: str, history_df: Any) -> List[Dict[str, Any]]:
     if history_df is None or history_df.empty or "Dividends" not in history_df.columns:
         return rows
 
-    dividends = history_df[history_df["Dividends"] > 0]["Dividends"]
-    if dividends is None or len(dividends) == 0:
+    dividend_rows = history_df[history_df["Dividends"] > 0]
+    if dividend_rows is None or len(dividend_rows) == 0:
         return rows
 
-    for idx, amount in dividends.items():
-        a = to_float(amount)
+    for idx, row in dividend_rows.iterrows():
+        a = to_float(row.get("Dividends"))
         if a is None:
             continue
         rows.append(
             {
                 "symbol": symbol,
                 "ex_date": idx.date().isoformat(),
+                "pay_date": extract_pay_date_from_row(row),
                 "amount": a,
             }
         )

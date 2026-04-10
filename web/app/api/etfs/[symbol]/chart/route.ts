@@ -5,12 +5,13 @@ type Params = {
   params: Promise<{ symbol: string }>
 }
 
-type RangeKey = '1M' | '3M' | '1Y' | '5Y'
+type RangeKey = '1M' | '3M' | '1Y' | '3Y' | '5Y'
 
 const rangeToMonths: Record<RangeKey, number> = {
   '1M': 1,
   '3M': 3,
   '1Y': 12,
+  '3Y': 36,
   '5Y': 60,
 }
 
@@ -22,7 +23,7 @@ function toStartDate(range: RangeKey) {
 }
 
 function isRangeKey(value: string): value is RangeKey {
-  return value === '1M' || value === '3M' || value === '1Y' || value === '5Y'
+  return value === '1M' || value === '3M' || value === '1Y' || value === '3Y' || value === '5Y'
 }
 
 export async function GET(request: Request, { params }: Params) {

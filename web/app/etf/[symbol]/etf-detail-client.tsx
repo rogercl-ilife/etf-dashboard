@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import { useLanguage } from '@/app/components/language-context'
 
-type RangeKey = '1M' | '3M' | '1Y' | '5Y'
+type RangeKey = '1M' | '3M' | '1Y' | '3Y' | '5Y'
 
 type EtfDetail = {
   symbol: string
@@ -32,6 +32,12 @@ type EtfDetail = {
     pay_date: string | null
     amount: number | null
   }>
+  holdings: Array<{
+    holding_symbol: string | null
+    holding_name: string | null
+    weight_pct: number | null
+    as_of_date: string | null
+  }>
   kpis: {
     ttm_dividend_amount: number | null
     ttm_dividend_count: number
@@ -49,7 +55,7 @@ type ChartPoint = {
   close: number
 }
 
-const RANGE_OPTIONS: RangeKey[] = ['1M', '3M', '1Y', '5Y']
+const RANGE_OPTIONS: RangeKey[] = ['1M', '3M', '1Y', '3Y', '5Y']
 
 const LOCALE_MAP = {
   en: 'en-US',
@@ -84,9 +90,14 @@ const TEXT = {
     ttmPayoutCount: 'TTM Payout Count',
     ttmYieldVsClose: 'TTM Yield (vs latest close)',
     exDate: 'Ex Date',
-    payDate: 'Pay Date',
     amount: 'Amount',
+    symbol: 'Symbol',
+    name: 'Name',
     noDividendData: 'No dividend data available.',
+    holdings: 'Holdings',
+    weight: 'Weight',
+    asOfDate: 'As Of Date',
+    noHoldingsData: 'No holdings data available.',
     basicInfo: 'Basic Info',
     issuer: 'Issuer',
     category: 'Category',
@@ -120,9 +131,14 @@ const TEXT = {
     ttmPayoutCount: '近 12 個月配息次數',
     ttmYieldVsClose: '近 12 個月殖利率（相對最新收盤）',
     exDate: '除息日',
-    payDate: '發放日',
     amount: '金額',
+    symbol: '代號',
+    name: '名稱',
     noDividendData: '目前沒有股息資料。',
+    holdings: '成份股',
+    weight: '比例',
+    asOfDate: '資料日期',
+    noHoldingsData: '目前沒有成份股資料。',
     basicInfo: '基本資訊',
     issuer: '發行商',
     category: '分類',
@@ -156,9 +172,14 @@ const TEXT = {
     ttmPayoutCount: '近 12 个月分配次数',
     ttmYieldVsClose: '近 12 个月收益率（相对最新收盘）',
     exDate: '除息日',
-    payDate: '派发日',
     amount: '金额',
+    symbol: '代码',
+    name: '名称',
     noDividendData: '暂无分红数据。',
+    holdings: '成份股',
+    weight: '比例',
+    asOfDate: '数据日期',
+    noHoldingsData: '暂无成份股数据。',
     basicInfo: '基础信息',
     issuer: '发行商',
     category: '分类',
@@ -290,6 +311,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
   const chartTitle = useMemo(() => t.chartTitle(symbol), [symbol, t])
   const snapshot = detail?.snapshot
   const kpis = detail?.kpis
+  const holdings = detail?.holdings || []
 
   return (
     <section className="space-y-6">
@@ -431,15 +453,13 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="px-2 py-2 font-medium">{t.exDate}</th>
-                  <th className="px-2 py-2 font-medium">{t.payDate}</th>
                   <th className="px-2 py-2 font-medium">{t.amount}</th>
                 </tr>
               </thead>
               <tbody>
                 {(detail?.dividends || []).map((row) => (
-                  <tr key={`${row.ex_date}-${row.pay_date || 'na'}`} className="border-b border-slate-100">
+                  <tr key={`${row.ex_date}-${row.amount || 'na'}`} className="border-b border-slate-100">
                     <td className="px-2 py-2 text-slate-800">{formatDate(row.ex_date)}</td>
-                    <td className="px-2 py-2 text-slate-600">{formatDate(row.pay_date)}</td>
                     <td className="px-2 py-2 font-medium text-slate-900">{formatCurrency(row.amount)}</td>
                   </tr>
                 ))}
@@ -450,6 +470,38 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           {!loadingDetail && (detail?.dividends || []).length === 0 ? (
             <p className="mt-4 text-sm text-slate-500">{t.noDividendData}</p>
           ) : null}
+
+          <div className="mt-8">
+            <h3 className="text-base font-semibold text-slate-900">{t.holdings}</h3>
+            {holdings.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-500">{t.noHoldingsData}</p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="px-2 py-2 font-medium">{t.symbol}</th>
+                      <th className="px-2 py-2 font-medium">{t.name}</th>
+                      <th className="px-2 py-2 font-medium">{t.weight}</th>
+                      <th className="px-2 py-2 font-medium">{t.asOfDate}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdings.map((row, idx) => (
+                      <tr key={`${row.holding_symbol || row.holding_name || 'holding'}-${idx}`} className="border-b border-slate-100">
+                        <td className="px-2 py-2 font-medium text-slate-900">{row.holding_symbol || t.na}</td>
+                        <td className="px-2 py-2 text-slate-700">{row.holding_name || t.na}</td>
+                        <td className="px-2 py-2 text-slate-700">
+                          {row.weight_pct != null ? `${pctFmt.format(row.weight_pct)}%` : t.na}
+                        </td>
+                        <td className="px-2 py-2 text-slate-700">{formatDate(row.as_of_date)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </article>
 
         <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6">

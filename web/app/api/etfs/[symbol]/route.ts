@@ -5,6 +5,30 @@ type Params = {
   params: Promise<{ symbol: string }>
 }
 
+function readText(row: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  return null
+}
+
+function readNumber(row: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed)) return parsed
+    }
+  }
+  return null
+}
+
 export async function GET(_: Request, { params }: Params) {
   const { symbol: rawSymbol } = await params
   const symbol = rawSymbol.trim().toUpperCase()
@@ -92,11 +116,57 @@ export async function GET(_: Request, { params }: Params) {
   const latestClose = snapshot?.latest_close != null ? Number(snapshot.latest_close) : null
   const ttmYieldPct = latestClose && latestClose > 0 ? (ttmDividendAmount / latestClose) * 100 : null
 
+  const holdingsResp = await supabase
+    .from('etf_holdings')
+    .select('*')
+    .eq('symbol', symbol)
+    .order('as_of_date', { ascending: false })
+    .order('rank', { ascending: true })
+    .limit(500)
+
+  let holdings: Array<{
+    holding_symbol: string | null
+    holding_name: string | null
+    weight_pct: number | null
+    as_of_date: string | null
+  }> = []
+
+  if (!holdingsResp.error) {
+    const rows = (holdingsResp.data || []) as Record<string, unknown>[]
+    const mapped = rows
+      .map((row) => ({
+        holding_symbol: readText(row, ['holding_symbol', 'constituent_symbol', 'ticker', 'stock_symbol']),
+        holding_name: readText(row, ['holding_name', 'constituent_name', 'name']),
+        weight_pct: readNumber(row, ['weight_pct', 'weight', 'holding_weight_pct']),
+        as_of_date: readText(row, ['as_of_date', 'report_date', 'updated_at']),
+      }))
+      .filter((row) => row.holding_symbol || row.holding_name || row.weight_pct != null)
+
+    let latestAsOf: string | null = null
+    for (const row of mapped) {
+      if (!row.as_of_date) continue
+      if (!latestAsOf || row.as_of_date > latestAsOf) {
+        latestAsOf = row.as_of_date
+      }
+    }
+
+    holdings = mapped
+      .filter((row) => (latestAsOf ? row.as_of_date === latestAsOf : true))
+      .sort((a, b) => {
+        if (a.weight_pct == null && b.weight_pct == null) return 0
+        if (a.weight_pct == null) return 1
+        if (b.weight_pct == null) return -1
+        return b.weight_pct - a.weight_pct
+      })
+      .slice(0, 50)
+  }
+
   return NextResponse.json({
     data: {
       ...etf,
       snapshot: snapshot || null,
       dividends: dividendsRows,
+      holdings,
       kpis: {
         ttm_dividend_amount: ttmDividendAmount > 0 ? Number(ttmDividendAmount.toFixed(4)) : null,
         ttm_dividend_count: ttmRows.length,
