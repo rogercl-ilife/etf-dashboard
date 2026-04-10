@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useLanguage } from '@/app/components/language-context'
 
 type RangeKey = '1M' | '3M' | '1Y' | '5Y'
 
@@ -50,41 +51,173 @@ type ChartPoint = {
 
 const RANGE_OPTIONS: RangeKey[] = ['1M', '3M', '1Y', '5Y']
 
-const currencyFmt = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 2,
-})
+const LOCALE_MAP = {
+  en: 'en-US',
+  'zh-TW': 'zh-TW',
+  'zh-CN': 'zh-CN',
+} as const
 
-const pctFmt = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-
-const dateFmt = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-})
-
-function formatDate(isoDate?: string | null) {
-  if (!isoDate) return 'N/A'
-  const date = new Date(isoDate)
-  if (Number.isNaN(date.getTime())) return 'N/A'
-  return dateFmt.format(date)
-}
-
-function formatCurrency(value?: number | null) {
-  if (value == null) return 'N/A'
-  return currencyFmt.format(value)
-}
-
-function formatPct(value?: number | null) {
-  if (value == null) return 'N/A'
-  return `${value > 0 ? '+' : ''}${pctFmt.format(value)}%`
+const TEXT = {
+  en: {
+    failedDetail: 'Failed to fetch ETF detail',
+    failedChart: 'Failed to fetch chart data',
+    unknownError: 'Unknown error',
+    retry: 'Retry',
+    detail: 'ETF DETAIL',
+    loading: 'Loading...',
+    nameNa: 'Name N/A',
+    latestClose: 'Latest Close',
+    dayChange: 'Day Change',
+    expenseRatio: 'Expense Ratio',
+    ttmDividend: 'TTM Dividend',
+    ttmYield: 'TTM Yield',
+    return1y: '1Y Return',
+    return3y: '3Y Return',
+    return5y: '5Y Return',
+    chartTitle: (symbol: string) => `${symbol} Price Trend`,
+    loadingChart: 'Loading chart...',
+    noChartData: 'No chart data in this range.',
+    close: 'Close',
+    dividends: 'Dividends',
+    recentRecords: 'Recent distribution records.',
+    ttmTotalDividend: 'TTM Total Dividend',
+    ttmPayoutCount: 'TTM Payout Count',
+    ttmYieldVsClose: 'TTM Yield (vs latest close)',
+    exDate: 'Ex Date',
+    payDate: 'Pay Date',
+    amount: 'Amount',
+    noDividendData: 'No dividend data available.',
+    basicInfo: 'Basic Info',
+    issuer: 'Issuer',
+    category: 'Category',
+    inceptionDate: 'Inception Date',
+    snapshotUpdated: 'Snapshot Updated',
+    na: 'N/A',
+  },
+  'zh-TW': {
+    failedDetail: 'ETF 詳情讀取失敗',
+    failedChart: '走勢圖資料讀取失敗',
+    unknownError: '未知錯誤',
+    retry: '重試',
+    detail: 'ETF 詳情',
+    loading: '載入中...',
+    nameNa: '名稱 N/A',
+    latestClose: '最新收盤價',
+    dayChange: '單日漲跌',
+    expenseRatio: '費用率',
+    ttmDividend: '近 12 個月股息',
+    ttmYield: '近 12 個月殖利率',
+    return1y: '1 年報酬',
+    return3y: '3 年報酬',
+    return5y: '5 年報酬',
+    chartTitle: (symbol: string) => `${symbol} 價格走勢`,
+    loadingChart: '載入圖表中...',
+    noChartData: '此區間沒有圖表資料。',
+    close: '收盤價',
+    dividends: '股息',
+    recentRecords: '近期配息紀錄。',
+    ttmTotalDividend: '近 12 個月總股息',
+    ttmPayoutCount: '近 12 個月配息次數',
+    ttmYieldVsClose: '近 12 個月殖利率（相對最新收盤）',
+    exDate: '除息日',
+    payDate: '發放日',
+    amount: '金額',
+    noDividendData: '目前沒有股息資料。',
+    basicInfo: '基本資訊',
+    issuer: '發行商',
+    category: '分類',
+    inceptionDate: '成立日期',
+    snapshotUpdated: '快照更新時間',
+    na: 'N/A',
+  },
+  'zh-CN': {
+    failedDetail: 'ETF 详情读取失败',
+    failedChart: '走势图数据读取失败',
+    unknownError: '未知错误',
+    retry: '重试',
+    detail: 'ETF 详情',
+    loading: '加载中...',
+    nameNa: '名称 N/A',
+    latestClose: '最新收盘价',
+    dayChange: '单日涨跌',
+    expenseRatio: '费率',
+    ttmDividend: '近 12 个月分红',
+    ttmYield: '近 12 个月收益率',
+    return1y: '1 年回报',
+    return3y: '3 年回报',
+    return5y: '5 年回报',
+    chartTitle: (symbol: string) => `${symbol} 价格走势`,
+    loadingChart: '图表加载中...',
+    noChartData: '该区间没有图表数据。',
+    close: '收盘价',
+    dividends: '分红',
+    recentRecords: '近期分配记录。',
+    ttmTotalDividend: '近 12 个月分红总额',
+    ttmPayoutCount: '近 12 个月分配次数',
+    ttmYieldVsClose: '近 12 个月收益率（相对最新收盘）',
+    exDate: '除息日',
+    payDate: '派发日',
+    amount: '金额',
+    noDividendData: '暂无分红数据。',
+    basicInfo: '基础信息',
+    issuer: '发行商',
+    category: '分类',
+    inceptionDate: '成立日期',
+    snapshotUpdated: '快照更新时间',
+    na: 'N/A',
+  },
 }
 
 export default function EtfDetailClient({ symbol }: { symbol: string }) {
+  const { language } = useLanguage()
+  const t = TEXT[language]
+
+  const currencyFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(LOCALE_MAP[language], {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2,
+      }),
+    [language],
+  )
+
+  const pctFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(LOCALE_MAP[language], {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [language],
+  )
+
+  const dateFmt = useMemo(
+    () =>
+      new Intl.DateTimeFormat(LOCALE_MAP[language], {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }),
+    [language],
+  )
+
+  const formatDate = (isoDate?: string | null) => {
+    if (!isoDate) return t.na
+    const date = new Date(isoDate)
+    if (Number.isNaN(date.getTime())) return t.na
+    return dateFmt.format(date)
+  }
+
+  const formatCurrency = (value?: number | null) => {
+    if (value == null) return t.na
+    return currencyFmt.format(value)
+  }
+
+  const formatPct = (value?: number | null) => {
+    if (value == null) return t.na
+    return `${value > 0 ? '+' : ''}${pctFmt.format(value)}%`
+  }
+
   const [range, setRange] = useState<RangeKey>('1Y')
   const [detail, setDetail] = useState<EtfDetail | null>(null)
   const [chart, setChart] = useState<ChartPoint[]>([])
@@ -108,13 +241,13 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
         const json = await res.json()
         if (!res.ok) {
-          throw new Error(json.error || 'Failed to fetch ETF detail')
+          throw new Error(json.error || t.failedDetail)
         }
 
         setDetail(json.data ?? null)
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        setError(e instanceof Error ? e.message : 'Unknown error')
+        setError(e instanceof Error ? e.message : t.unknownError)
       } finally {
         setLoadingDetail(false)
       }
@@ -122,7 +255,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
     fetchDetail()
     return () => controller.abort()
-  }, [symbol, refreshToken])
+  }, [symbol, refreshToken, t.failedDetail, t.unknownError])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -138,13 +271,13 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
         const json = await res.json()
         if (!res.ok) {
-          throw new Error(json.error || 'Failed to fetch chart data')
+          throw new Error(json.error || t.failedChart)
         }
 
         setChart(Array.isArray(json.data) ? json.data : [])
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        setError(e instanceof Error ? e.message : 'Unknown error')
+        setError(e instanceof Error ? e.message : t.unknownError)
       } finally {
         setLoadingChart(false)
       }
@@ -152,9 +285,9 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
     fetchChart()
     return () => controller.abort()
-  }, [range, symbol, refreshToken])
+  }, [range, symbol, refreshToken, t.failedChart, t.unknownError])
 
-  const chartTitle = useMemo(() => `${symbol} Price Trend`, [symbol])
+  const chartTitle = useMemo(() => t.chartTitle(symbol), [symbol, t])
   const snapshot = detail?.snapshot
   const kpis = detail?.kpis
 
@@ -168,7 +301,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
             onClick={() => setRefreshToken((v) => v + 1)}
             className="rounded-full border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
           >
-            Retry
+            {t.retry}
           </button>
         </div>
       ) : null}
@@ -176,12 +309,12 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
       <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.15em] text-slate-500">ETF DETAIL</p>
-            <h1 className="mt-1 text-3xl font-bold text-slate-900">{loadingDetail ? 'Loading...' : detail?.symbol || symbol}</h1>
-            <p className="mt-1 text-sm text-slate-600">{detail?.name || 'Name N/A'}</p>
+            <p className="text-xs font-semibold tracking-[0.15em] text-slate-500">{t.detail}</p>
+            <h1 className="mt-1 text-3xl font-bold text-slate-900">{loadingDetail ? t.loading : detail?.symbol || symbol}</h1>
+            <p className="mt-1 text-sm text-slate-600">{detail?.name || t.nameNa}</p>
           </div>
           <div className="rounded-xl bg-slate-50 px-4 py-3 text-right">
-            <p className="text-xs text-slate-500">Latest Close</p>
+            <p className="text-xs text-slate-500">{t.latestClose}</p>
             <p className="text-2xl font-semibold text-slate-900">{formatCurrency(snapshot?.latest_close)}</p>
             <p className={`text-sm ${snapshot?.change_pct != null && snapshot.change_pct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {formatCurrency(snapshot?.change)} ({formatPct(snapshot?.change_pct)})
@@ -191,36 +324,36 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Day Change</p>
+            <p className="text-xs text-slate-500">{t.dayChange}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(snapshot?.change_pct)}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Expense Ratio</p>
+            <p className="text-xs text-slate-500">{t.expenseRatio}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
-              {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : 'N/A'}
+              {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : t.na}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">TTM Dividend</p>
+            <p className="text-xs text-slate-500">{t.ttmDividend}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatCurrency(kpis?.ttm_dividend_amount)}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">TTM Yield</p>
+            <p className="text-xs text-slate-500">{t.ttmYield}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.ttm_dividend_yield_pct)}</p>
           </div>
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">1Y Return</p>
+            <p className="text-xs text-slate-500">{t.return1y}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['1Y'])}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">3Y Return</p>
+            <p className="text-xs text-slate-500">{t.return3y}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['3Y'])}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">5Y Return</p>
+            <p className="text-xs text-slate-500">{t.return5y}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['5Y'])}</p>
           </div>
         </div>
@@ -249,9 +382,9 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
         <div className="h-60 w-full sm:h-72">
           {loadingChart ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500">Loading chart...</div>
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">{t.loadingChart}</div>
           ) : chart.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500">No chart data in this range.</div>
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">{t.noChartData}</div>
           ) : (
             <ResponsiveContainer>
               <LineChart data={chart} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
@@ -264,7 +397,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
                 />
                 <YAxis tick={{ fontSize: 12 }} domain={['auto', 'auto']} tickFormatter={(value) => `${value}`} />
                 <Tooltip
-                  formatter={(value) => [formatCurrency(Number(value)), 'Close']}
+                  formatter={(value) => [formatCurrency(Number(value)), t.close]}
                   labelFormatter={(value) => formatDate(String(value))}
                 />
                 <Line type="monotone" dataKey="close" stroke="#0f172a" strokeWidth={2.2} dot={false} />
@@ -276,19 +409,19 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
-          <h2 className="text-lg font-semibold text-slate-900">Dividends</h2>
-          <p className="mt-1 text-sm text-slate-500">Recent distribution records.</p>
+          <h2 className="text-lg font-semibold text-slate-900">{t.dividends}</h2>
+          <p className="mt-1 text-sm text-slate-500">{t.recentRecords}</p>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">TTM Total Dividend</p>
+              <p className="text-xs text-slate-500">{t.ttmTotalDividend}</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{formatCurrency(kpis?.ttm_dividend_amount)}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">TTM Payout Count</p>
+              <p className="text-xs text-slate-500">{t.ttmPayoutCount}</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{kpis?.ttm_dividend_count ?? 0}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">TTM Yield (vs latest close)</p>
+              <p className="text-xs text-slate-500">{t.ttmYieldVsClose}</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.ttm_dividend_yield_pct)}</p>
             </div>
           </div>
@@ -297,9 +430,9 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-2 py-2 font-medium">Ex Date</th>
-                  <th className="px-2 py-2 font-medium">Pay Date</th>
-                  <th className="px-2 py-2 font-medium">Amount</th>
+                  <th className="px-2 py-2 font-medium">{t.exDate}</th>
+                  <th className="px-2 py-2 font-medium">{t.payDate}</th>
+                  <th className="px-2 py-2 font-medium">{t.amount}</th>
                 </tr>
               </thead>
               <tbody>
@@ -315,33 +448,33 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           </div>
 
           {!loadingDetail && (detail?.dividends || []).length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">No dividend data available.</p>
+            <p className="mt-4 text-sm text-slate-500">{t.noDividendData}</p>
           ) : null}
         </article>
 
         <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-900">Basic Info</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t.basicInfo}</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <div>
-              <dt className="text-slate-500">Issuer</dt>
-              <dd className="font-medium text-slate-900">{detail?.issuer || 'N/A'}</dd>
+              <dt className="text-slate-500">{t.issuer}</dt>
+              <dd className="font-medium text-slate-900">{detail?.issuer || t.na}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Category</dt>
-              <dd className="font-medium text-slate-900">{detail?.category || 'N/A'}</dd>
+              <dt className="text-slate-500">{t.category}</dt>
+              <dd className="font-medium text-slate-900">{detail?.category || t.na}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Expense Ratio</dt>
+              <dt className="text-slate-500">{t.expenseRatio}</dt>
               <dd className="font-medium text-slate-900">
-                {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : 'N/A'}
+                {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : t.na}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Inception Date</dt>
+              <dt className="text-slate-500">{t.inceptionDate}</dt>
               <dd className="font-medium text-slate-900">{formatDate(detail?.inception_date)}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Snapshot Updated</dt>
+              <dt className="text-slate-500">{t.snapshotUpdated}</dt>
               <dd className="font-medium text-slate-900">{formatDate(snapshot?.updated_at)}</dd>
             </div>
           </dl>
