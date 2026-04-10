@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/app/components/language-context'
+import { localizeCategory } from '@/app/lib/category-labels'
 
 type EtfRow = {
   symbol: string
@@ -44,6 +45,7 @@ const TEXT = {
     loadFailed: 'Load failed',
     showing: (current: number, total: number) => `Showing ${current} of ${total} ETFs`,
     retry: 'Retry',
+    lastUpdated: 'Last updated',
     symbol: 'Symbol',
     name: 'Name',
     issuer: 'Issuer',
@@ -52,9 +54,7 @@ const TEXT = {
     y1: '1Y',
     y3: '3Y',
     y5: '5Y',
-    issuerNa: 'Issuer N/A',
-    categoryNa: 'Category N/A',
-    na: 'N/A',
+    noData: 'N/A',
     noMatch: 'No ETF matched your keyword/filters.',
     failedFetch: 'Failed to fetch ETF list',
     unknownError: 'Unknown error',
@@ -74,6 +74,7 @@ const TEXT = {
     loadFailed: '載入失敗',
     showing: (current: number, total: number) => `顯示 ${current} / ${total} 檔 ETF`,
     retry: '重試',
+    lastUpdated: '最後更新',
     symbol: '代號',
     name: '名稱',
     issuer: '發行商',
@@ -82,9 +83,7 @@ const TEXT = {
     y1: '1 年',
     y3: '3 年',
     y5: '5 年',
-    issuerNa: '發行商 N/A',
-    categoryNa: '分類 N/A',
-    na: 'N/A',
+    noData: '無資料',
     noMatch: '找不到符合關鍵字或篩選條件的 ETF。',
     failedFetch: 'ETF 清單讀取失敗',
     unknownError: '未知錯誤',
@@ -104,6 +103,7 @@ const TEXT = {
     loadFailed: '加载失败',
     showing: (current: number, total: number) => `显示 ${current} / ${total} 只 ETF`,
     retry: '重试',
+    lastUpdated: '最后更新',
     symbol: '代码',
     name: '名称',
     issuer: '发行商',
@@ -112,9 +112,7 @@ const TEXT = {
     y1: '1 年',
     y3: '3 年',
     y5: '5 年',
-    issuerNa: '发行商 N/A',
-    categoryNa: '分类 N/A',
-    na: 'N/A',
+    noData: '暂无数据',
     noMatch: '没有符合关键字或筛选条件的 ETF。',
     failedFetch: 'ETF 列表读取失败',
     unknownError: '未知错误',
@@ -145,6 +143,7 @@ export default function EtfList() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [sortField, setSortField] = useState<SortField>('symbol')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
@@ -175,8 +174,21 @@ export default function EtfList() {
   )
 
   const formatPct = (value?: number | null) => {
-    if (value == null) return t.na
+    if (value == null) return t.noData
     return `${value > 0 ? '+' : ''}${pctFmt.format(value)}%`
+  }
+
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return t.noData
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return t.noData
+    return new Intl.DateTimeFormat(LOCALE_MAP[language], {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
   }
 
   const pctColor = (value?: number | null) => {
@@ -234,6 +246,7 @@ export default function EtfList() {
         }
 
         setItems(Array.isArray(json.data) ? json.data : [])
+        setLastUpdatedAt(typeof json?.meta?.last_updated_at === 'string' ? json.meta.last_updated_at : null)
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') {
           return
@@ -255,8 +268,10 @@ export default function EtfList() {
 
   const categoryOptions = useMemo(() => {
     const values = Array.from(new Set(items.map((x) => x.category).filter(Boolean) as string[]))
-    return values.sort((a, b) => a.localeCompare(b))
-  }, [items])
+    return values.sort((a, b) =>
+      (localizeCategory(a, language) || a).localeCompare(localizeCategory(b, language) || b),
+    )
+  }, [items, language])
 
   const filteredAndSorted = useMemo(() => {
     const filtered = items.filter((row) => {
@@ -273,9 +288,13 @@ export default function EtfList() {
       if (sortField === 'symbol') return compareNullableText(a.symbol, b.symbol, sortDirection)
       if (sortField === 'name') return compareNullableText(a.name || a.symbol, b.name || b.symbol, sortDirection)
       if (sortField === 'issuer') return compareNullableText(a.issuer, b.issuer, sortDirection)
-      return compareNullableText(a.category, b.category, sortDirection)
+      return compareNullableText(
+        localizeCategory(a.category, language),
+        localizeCategory(b.category, language),
+        sortDirection,
+      )
     })
-  }, [items, issuerFilter, categoryFilter, sortField, sortDirection])
+  }, [items, issuerFilter, categoryFilter, sortField, sortDirection, language])
 
   const statsText = useMemo(() => {
     if (loading) return t.loading
@@ -351,7 +370,7 @@ export default function EtfList() {
             <option value="all">{t.categoryAll}</option>
             {categoryOptions.map((category) => (
               <option key={category} value={category}>
-                {category}
+                {localizeCategory(category, language)}
               </option>
             ))}
           </select>
@@ -379,6 +398,9 @@ export default function EtfList() {
         </div>
 
         <p className="mt-2 text-sm text-slate-600">{statsText}</p>
+        <p className="mt-1 text-xs text-slate-500">
+          {t.lastUpdated}: {formatDateTime(lastUpdatedAt)}
+        </p>
       </div>
 
       {error ? (
@@ -415,11 +437,13 @@ export default function EtfList() {
               <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md">
                 <p className="text-xs font-semibold tracking-wide text-slate-500">{etf.symbol}</p>
                 <h2 className="mt-1 text-base font-semibold text-slate-900">{etf.name || etf.symbol}</h2>
-                <p className="mt-1 text-sm text-slate-600">{etf.issuer || t.issuerNa}</p>
+                <p className="mt-1 text-sm text-slate-600">{etf.issuer || t.noData}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                  <span className="rounded-full bg-slate-100 px-2 py-1">{etf.category || t.categoryNa}</span>
                   <span className="rounded-full bg-slate-100 px-2 py-1">
-                    {t.er}: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.na}
+                    {localizeCategory(etf.category, language) || t.noData}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1">
+                    {t.er}: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.noData}
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
@@ -469,10 +493,10 @@ export default function EtfList() {
                       {etf.symbol}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-800">{etf.name || t.na}</td>
-                  <td className="px-4 py-3 text-slate-600">{etf.issuer || t.na}</td>
-                  <td className="px-4 py-3 text-slate-600">{etf.category || t.na}</td>
-                  <td className="px-4 py-3 text-slate-800">{etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.na}</td>
+                  <td className="px-4 py-3 text-slate-800">{etf.name || t.noData}</td>
+                  <td className="px-4 py-3 text-slate-600">{etf.issuer || t.noData}</td>
+                  <td className="px-4 py-3 text-slate-600">{localizeCategory(etf.category, language) || t.noData}</td>
+                  <td className="px-4 py-3 text-slate-800">{etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.noData}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['3Y'])}`}>{formatPct(etf.period_returns_pct?.['3Y'])}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</td>

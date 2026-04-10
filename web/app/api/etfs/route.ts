@@ -15,6 +15,7 @@ type SnapshotRow = {
   return_1y_pct: number | null
   return_3y_pct: number | null
   return_5y_pct: number | null
+  updated_at: string | null
 }
 
 export async function GET(request: Request) {
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
   const symbols = etfs.map((row) => row.symbol)
   const snapshotsResp = await supabase
     .from('etf_snapshots')
-    .select('symbol,return_1y_pct,return_3y_pct,return_5y_pct')
+    .select('symbol,return_1y_pct,return_3y_pct,return_5y_pct,updated_at')
     .in('symbol', symbols)
 
   let snapshots: SnapshotRow[] = []
@@ -67,6 +68,7 @@ export async function GET(request: Request) {
     const snap = snapshotMap.get(etf.symbol)
     return {
       ...etf,
+      snapshot_updated_at: snap?.updated_at ?? null,
       period_returns_pct: {
         '1Y': snap?.return_1y_pct ?? null,
         '3Y': snap?.return_3y_pct ?? null,
@@ -75,5 +77,10 @@ export async function GET(request: Request) {
     }
   })
 
-  return NextResponse.json({ data: enriched })
+  const lastUpdatedAt = snapshots
+    .map((row) => row.updated_at)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .sort((a, b) => (a > b ? -1 : a < b ? 1 : 0))[0] || null
+
+  return NextResponse.json({ data: enriched, meta: { last_updated_at: lastUpdatedAt } })
 }

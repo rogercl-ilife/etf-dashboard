@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useLanguage } from '@/app/components/language-context'
+import { localizeCategory } from '@/app/lib/category-labels'
 
 type RangeKey = '1M' | '3M' | '1Y' | '3Y' | '5Y'
 
@@ -69,9 +70,9 @@ const TEXT = {
     failedChart: 'Failed to fetch chart data',
     unknownError: 'Unknown error',
     retry: 'Retry',
+    lastUpdated: 'Last updated',
     detail: 'ETF DETAIL',
     loading: 'Loading...',
-    nameNa: 'Name N/A',
     latestClose: 'Latest Close',
     dayChange: 'Day Change',
     expenseRatio: 'Expense Ratio',
@@ -103,16 +104,16 @@ const TEXT = {
     category: 'Category',
     inceptionDate: 'Inception Date',
     snapshotUpdated: 'Snapshot Updated',
-    na: 'N/A',
+    noData: 'N/A',
   },
   'zh-TW': {
     failedDetail: 'ETF 詳情讀取失敗',
     failedChart: '走勢圖資料讀取失敗',
     unknownError: '未知錯誤',
     retry: '重試',
+    lastUpdated: '最後更新',
     detail: 'ETF 詳情',
     loading: '載入中...',
-    nameNa: '名稱 N/A',
     latestClose: '最新收盤價',
     dayChange: '單日漲跌',
     expenseRatio: '費用率',
@@ -144,16 +145,16 @@ const TEXT = {
     category: '分類',
     inceptionDate: '成立日期',
     snapshotUpdated: '快照更新時間',
-    na: 'N/A',
+    noData: '無資料',
   },
   'zh-CN': {
     failedDetail: 'ETF 详情读取失败',
     failedChart: '走势图数据读取失败',
     unknownError: '未知错误',
     retry: '重试',
+    lastUpdated: '最后更新',
     detail: 'ETF 详情',
     loading: '加载中...',
-    nameNa: '名称 N/A',
     latestClose: '最新收盘价',
     dayChange: '单日涨跌',
     expenseRatio: '费率',
@@ -185,7 +186,7 @@ const TEXT = {
     category: '分类',
     inceptionDate: '成立日期',
     snapshotUpdated: '快照更新时间',
-    na: 'N/A',
+    noData: '暂无数据',
   },
 }
 
@@ -223,19 +224,32 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
   )
 
   const formatDate = (isoDate?: string | null) => {
-    if (!isoDate) return t.na
+    if (!isoDate) return t.noData
     const date = new Date(isoDate)
-    if (Number.isNaN(date.getTime())) return t.na
+    if (Number.isNaN(date.getTime())) return t.noData
     return dateFmt.format(date)
   }
 
+  const formatDateTime = (isoDate?: string | null) => {
+    if (!isoDate) return t.noData
+    const date = new Date(isoDate)
+    if (Number.isNaN(date.getTime())) return t.noData
+    return new Intl.DateTimeFormat(LOCALE_MAP[language], {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
   const formatCurrency = (value?: number | null) => {
-    if (value == null) return t.na
+    if (value == null) return t.noData
     return currencyFmt.format(value)
   }
 
   const formatPct = (value?: number | null) => {
-    if (value == null) return t.na
+    if (value == null) return t.noData
     return `${value > 0 ? '+' : ''}${pctFmt.format(value)}%`
   }
 
@@ -333,13 +347,16 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           <div>
             <p className="text-xs font-semibold tracking-[0.15em] text-slate-500">{t.detail}</p>
             <h1 className="mt-1 text-3xl font-bold text-slate-900">{loadingDetail ? t.loading : detail?.symbol || symbol}</h1>
-            <p className="mt-1 text-sm text-slate-600">{detail?.name || t.nameNa}</p>
+            <p className="mt-1 text-sm text-slate-600">{detail?.name || t.noData}</p>
           </div>
           <div className="rounded-xl bg-slate-50 px-4 py-3 text-right">
             <p className="text-xs text-slate-500">{t.latestClose}</p>
             <p className="text-2xl font-semibold text-slate-900">{formatCurrency(snapshot?.latest_close)}</p>
             <p className={`text-sm ${snapshot?.change_pct != null && snapshot.change_pct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {formatCurrency(snapshot?.change)} ({formatPct(snapshot?.change_pct)})
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {t.lastUpdated}: {formatDateTime(snapshot?.updated_at)}
             </p>
           </div>
         </div>
@@ -352,7 +369,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">{t.expenseRatio}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
-              {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : t.na}
+              {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : t.noData}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -489,10 +506,10 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
                   <tbody>
                     {holdings.map((row, idx) => (
                       <tr key={`${row.holding_symbol || row.holding_name || 'holding'}-${idx}`} className="border-b border-slate-100">
-                        <td className="px-2 py-2 font-medium text-slate-900">{row.holding_symbol || t.na}</td>
-                        <td className="px-2 py-2 text-slate-700">{row.holding_name || t.na}</td>
+                        <td className="px-2 py-2 font-medium text-slate-900">{row.holding_symbol || t.noData}</td>
+                        <td className="px-2 py-2 text-slate-700">{row.holding_name || t.noData}</td>
                         <td className="px-2 py-2 text-slate-700">
-                          {row.weight_pct != null ? `${pctFmt.format(row.weight_pct)}%` : t.na}
+                          {row.weight_pct != null ? `${pctFmt.format(row.weight_pct)}%` : t.noData}
                         </td>
                         <td className="px-2 py-2 text-slate-700">{formatDate(row.as_of_date)}</td>
                       </tr>
@@ -509,16 +526,18 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           <dl className="mt-4 space-y-3 text-sm">
             <div>
               <dt className="text-slate-500">{t.issuer}</dt>
-              <dd className="font-medium text-slate-900">{detail?.issuer || t.na}</dd>
+              <dd className="font-medium text-slate-900">{detail?.issuer || t.noData}</dd>
             </div>
             <div>
               <dt className="text-slate-500">{t.category}</dt>
-              <dd className="font-medium text-slate-900">{detail?.category || t.na}</dd>
+              <dd className="font-medium text-slate-900">
+                {localizeCategory(detail?.category, language) || t.noData}
+              </dd>
             </div>
             <div>
               <dt className="text-slate-500">{t.expenseRatio}</dt>
               <dd className="font-medium text-slate-900">
-                {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : t.na}
+                {detail?.expense_ratio != null ? `${detail.expense_ratio}%` : t.noData}
               </dd>
             </div>
             <div>
@@ -527,7 +546,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
             </div>
             <div>
               <dt className="text-slate-500">{t.snapshotUpdated}</dt>
-              <dd className="font-medium text-slate-900">{formatDate(snapshot?.updated_at)}</dd>
+              <dd className="font-medium text-slate-900">{formatDateTime(snapshot?.updated_at)}</dd>
             </div>
           </dl>
         </article>
