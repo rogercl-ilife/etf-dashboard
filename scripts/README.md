@@ -29,6 +29,7 @@ python update_market_data.py --all --period 1mo --dry-run
 Notes:
 - Script reads Supabase credentials from `scripts/.env`.
 - The script writes to: `etf_prices_daily`, `etf_dividends`, `etf_snapshots`, `job_logs`.
+- Snapshot also stores `return_1y_pct`, `return_3y_pct`, `return_5y_pct` (computed from DB price history).
 - If your DB does not have the required tables yet, run `week2_setup.sql` in Supabase SQL Editor.
 
 ## Week 5: GitHub Actions

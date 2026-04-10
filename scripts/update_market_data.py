@@ -1,7 +1,7 @@
 import argparse
 import math
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -48,6 +48,87 @@ def to_int(value: Any) -> Optional[int]:
     if f is None:
         return None
     return int(f)
+
+
+def parse_iso_date(value: str) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(f"{value}T00:00:00+00:00")
+    except ValueError:
+        return None
+
+
+def calc_period_returns(
+    rows: List[Dict[str, Any]],
+    latest_price: Optional[float] = None,
+    anchor_date: Optional[date] = None,
+) -> Dict[str, Optional[float]]:
+    clean_rows: List[Dict[str, Any]] = []
+    for row in rows:
+        close = to_float(row.get("close"))
+        trade_date = row.get("trade_date")
+        if close is None or not trade_date:
+            continue
+        date = parse_iso_date(str(trade_date))
+        if date is None:
+            continue
+        clean_rows.append({"date": date, "close": close})
+
+    if len(clean_rows) < 1:
+        return {"1Y": None, "3Y": None, "5Y": None}
+
+    latest = clean_rows[-1]
+    latest_close = latest_price if latest_price is not None else latest["close"]
+    if latest_close is None or latest_close <= 0:
+        return {"1Y": None, "3Y": None, "5Y": None}
+
+    if anchor_date is None:
+        anchor_date = datetime.now(timezone.utc).date()
+    result: Dict[str, Optional[float]] = {"1Y": None, "3Y": None, "5Y": None}
+
+    for period in ("1Y", "3Y", "5Y"):
+        years = int(period[0])
+        target = datetime(anchor_date.year, anchor_date.month, anchor_date.day, tzinfo=timezone.utc)
+        while True:
+            try:
+                target = target.replace(year=anchor_date.year - years)
+                break
+            except ValueError:
+                target = target - timedelta(days=1)
+
+        base = next((x for x in clean_rows if x["date"] >= target), None)
+        if not base or base["close"] <= 0:
+            result[period] = None
+            continue
+
+        result[period] = round(((latest_close / base["close"]) - 1.0) * 100.0, 4)
+
+    return result
+
+
+def build_return_rows(history_df: Any) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    if history_df is None or history_df.empty:
+        return rows
+
+    for idx, row in history_df.iterrows():
+        trade_date = idx.date().isoformat()
+        raw_close = to_float(row.get("Close"))
+        if raw_close is None:
+            continue
+        rows.append({"trade_date": trade_date, "close": raw_close})
+    return rows
+
+
+def get_latest_market_price(ticker: Any, fallback_close: Optional[float]) -> Optional[float]:
+    try:
+        fast_info = ticker.fast_info
+        if fast_info:
+            last_price = to_float(fast_info.get("lastPrice"))
+            if last_price is not None and last_price > 0:
+                return last_price
+    except Exception:
+        pass
+    return fallback_close
 
 
 def log_job(client: Client, job_name: str, status: str, message: str) -> None:
@@ -116,7 +197,12 @@ def build_dividends(symbol: str, history_df: Any) -> List[Dict[str, Any]]:
     return rows
 
 
-def build_snapshot(symbol: str, history_df: Any) -> Optional[Dict[str, Any]]:
+def build_snapshot(
+    symbol: str,
+    history_df: Any,
+    period_returns: Optional[Dict[str, Optional[float]]] = None,
+    include_return_fields: bool = True,
+) -> Optional[Dict[str, Any]]:
     if history_df is None or history_df.empty:
         return None
 
@@ -132,13 +218,18 @@ def build_snapshot(symbol: str, history_df: Any) -> Optional[Dict[str, Any]]:
     change = latest_close - prev_close if prev_close is not None else 0.0
     change_pct = (change / prev_close * 100.0) if prev_close not in (None, 0.0) else 0.0
 
-    return {
+    row = {
         "symbol": symbol,
         "latest_close": latest_close,
         "change": change,
         "change_pct": change_pct,
         "updated_at": now_iso(),
     }
+    if include_return_fields:
+        row["return_1y_pct"] = (period_returns or {}).get("1Y")
+        row["return_3y_pct"] = (period_returns or {}).get("3Y")
+        row["return_5y_pct"] = (period_returns or {}).get("5Y")
+    return row
 
 
 def upsert_rows(client: Client, table: str, rows: List[Dict[str, Any]], on_conflict: str) -> int:
@@ -166,6 +257,10 @@ def run(symbols: List[str], period: str, dry_run: bool) -> int:
         try:
             ticker = yf.Ticker(symbol)
             history = ticker.history(period=period, auto_adjust=False, actions=True)
+            returns_history = history
+            if period != "5y":
+                returns_history = ticker.history(period="5y", auto_adjust=False, actions=True)
+
             prices = build_prices(symbol, history)
             dividends = build_dividends(symbol, history)
             snapshot = build_snapshot(symbol, history)
@@ -173,8 +268,28 @@ def run(symbols: List[str], period: str, dry_run: bool) -> int:
             if not dry_run:
                 total_prices += upsert_rows(client, PRICES_TABLE, prices, "symbol,trade_date")
                 total_dividends += upsert_rows(client, DIVIDENDS_TABLE, dividends, "symbol,ex_date")
+
+                return_rows = build_return_rows(returns_history)
+                fallback_close = None
+                if snapshot and snapshot.get("latest_close") is not None:
+                    fallback_close = to_float(snapshot.get("latest_close"))
+                latest_market_price = get_latest_market_price(ticker, fallback_close)
+                period_returns = calc_period_returns(return_rows, latest_price=latest_market_price)
+                snapshot = build_snapshot(symbol, history, period_returns=period_returns)
                 if snapshot:
-                    total_snapshots += upsert_rows(client, SNAPSHOTS_TABLE, [snapshot], "symbol")
+                    try:
+                        total_snapshots += upsert_rows(client, SNAPSHOTS_TABLE, [snapshot], "symbol")
+                    except Exception as exc:
+                        if "return_1y_pct" not in str(exc):
+                            raise
+                        fallback_snapshot = build_snapshot(
+                            symbol,
+                            history,
+                            period_returns=None,
+                            include_return_fields=False,
+                        )
+                        if fallback_snapshot:
+                            total_snapshots += upsert_rows(client, SNAPSHOTS_TABLE, [fallback_snapshot], "symbol")
 
             print(
                 f"[OK] {symbol} prices={len(prices)} dividends={len(dividends)} snapshot={1 if snapshot else 0}"
