@@ -22,6 +22,16 @@ type EtfRow = {
 type ViewMode = 'cards' | 'table'
 type SortDirection = 'asc' | 'desc'
 type SortField = 'symbol' | 'name' | 'issuer' | 'category' | 'expense_ratio' | 'return_1y' | 'return_3y' | 'return_5y'
+type SortPreset =
+  | 'symbol_asc'
+  | 'symbol_desc'
+  | 'name_asc'
+  | 'expense_ratio_asc'
+  | 'expense_ratio_desc'
+  | 'return_1y_desc'
+  | 'return_3y_desc'
+  | 'return_5y_desc'
+  | 'custom'
 
 const LOCALE_MAP = {
   en: 'en-US',
@@ -33,7 +43,8 @@ const TEXT = {
   en: {
     searchEtf: 'Search ETF',
     searchPlaceholder: 'Try VOO, SPY, QQQ...',
-    sortBy: 'Sort by',
+    sortBy: 'Sort',
+    customSort: 'Custom (table header)',
     direction: 'Direction',
     asc: 'Asc',
     desc: 'Desc',
@@ -62,7 +73,8 @@ const TEXT = {
   'zh-TW': {
     searchEtf: '搜尋 ETF',
     searchPlaceholder: '例如 VOO、SPY、QQQ...',
-    sortBy: '排序欄位',
+    sortBy: '排序',
+    customSort: '自訂（表頭排序）',
     direction: '方向',
     asc: '升冪',
     desc: '降冪',
@@ -91,7 +103,8 @@ const TEXT = {
   'zh-CN': {
     searchEtf: '搜索 ETF',
     searchPlaceholder: '例如 VOO、SPY、QQQ...',
-    sortBy: '排序字段',
+    sortBy: '排序',
+    customSort: '自定义（表头排序）',
     direction: '方向',
     asc: '升序',
     desc: '降序',
@@ -133,6 +146,42 @@ function compareNullableNumber(a: number | null, b: number | null, direction: So
   return direction === 'asc' ? a - b : b - a
 }
 
+function parseSortPreset(preset: SortPreset): { field: SortField; direction: SortDirection } | null {
+  if (preset === 'custom') return null
+  const splitIndex = preset.lastIndexOf('_')
+  const field = preset.slice(0, splitIndex)
+  const direction = preset.slice(splitIndex + 1)
+  if (
+    (direction === 'asc' || direction === 'desc') &&
+    (field === 'symbol' ||
+      field === 'name' ||
+      field === 'issuer' ||
+      field === 'category' ||
+      field === 'expense_ratio' ||
+      field === 'return_1y' ||
+      field === 'return_3y' ||
+      field === 'return_5y')
+  ) {
+    return { field, direction }
+  }
+  return null
+}
+
+function toSortPreset(field: SortField, direction: SortDirection): SortPreset {
+  const key = `${field}_${direction}` as SortPreset
+  const presets: SortPreset[] = [
+    'symbol_asc',
+    'symbol_desc',
+    'name_asc',
+    'expense_ratio_asc',
+    'expense_ratio_desc',
+    'return_1y_desc',
+    'return_3y_desc',
+    'return_5y_desc',
+  ]
+  return presets.includes(key) ? key : 'custom'
+}
+
 export default function EtfList() {
   const { language } = useLanguage()
   const t = TEXT[language]
@@ -147,6 +196,7 @@ export default function EtfList() {
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [sortField, setSortField] = useState<SortField>('symbol')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [sortPreset, setSortPreset] = useState<SortPreset>('symbol_asc')
   const [issuerFilter, setIssuerFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
@@ -159,17 +209,18 @@ export default function EtfList() {
     [language],
   )
 
-  const sortFieldLabels: Record<SortField, string> = useMemo(
-    () => ({
-      symbol: t.symbol,
-      name: t.name,
-      issuer: t.issuer,
-      category: t.category,
-      expense_ratio: t.er,
-      return_1y: t.y1,
-      return_3y: t.y3,
-      return_5y: t.y5,
-    }),
+  const sortPresetOptions: Array<{ value: SortPreset; label: string }> = useMemo(
+    () => [
+      { value: 'symbol_asc', label: `${t.symbol} (${t.asc})` },
+      { value: 'symbol_desc', label: `${t.symbol} (${t.desc})` },
+      { value: 'name_asc', label: `${t.name} (${t.asc})` },
+      { value: 'expense_ratio_asc', label: `${t.er} (${t.asc})` },
+      { value: 'expense_ratio_desc', label: `${t.er} (${t.desc})` },
+      { value: 'return_1y_desc', label: `${t.y1} (${t.desc})` },
+      { value: 'return_3y_desc', label: `${t.y3} (${t.desc})` },
+      { value: 'return_5y_desc', label: `${t.y5} (${t.desc})` },
+      { value: 'custom', label: t.customSort },
+    ],
     [t],
   )
 
@@ -192,10 +243,10 @@ export default function EtfList() {
   }
 
   const pctColor = (value?: number | null) => {
-    if (value == null) return 'text-slate-500'
-    if (value > 0) return 'text-emerald-700'
-    if (value < 0) return 'text-rose-700'
-    return 'text-slate-700'
+    if (value == null) return 'text-[#6a7f97]'
+    if (value > 0) return 'text-[#0f7a5c]'
+    if (value < 0) return 'text-[#b5475a]'
+    return 'text-[#2f4664]'
   }
 
   const getNumberByField = (row: EtfRow, field: SortField) => {
@@ -212,9 +263,22 @@ export default function EtfList() {
     if (sortField !== field) {
       setSortField(field)
       setSortDirection('asc')
+      setSortPreset(toSortPreset(field, 'asc'))
       return
     }
-    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    setSortDirection((prev) => {
+      const next = prev === 'asc' ? 'desc' : 'asc'
+      setSortPreset(toSortPreset(field, next))
+      return next
+    })
+  }
+
+  const handleSortPresetChange = (preset: SortPreset) => {
+    setSortPreset(preset)
+    const parsed = parseSortPreset(preset)
+    if (!parsed) return
+    setSortField(parsed.field)
+    setSortDirection(parsed.direction)
   }
 
   useEffect(() => {
@@ -315,8 +379,8 @@ export default function EtfList() {
 
   return (
     <section className="space-y-6">
-      <div className="sticky top-2 z-10 rounded-2xl border border-black/10 bg-white/95 p-4 shadow-sm backdrop-blur-sm sm:p-5">
-        <label htmlFor="search" className="mb-2 block text-sm font-medium text-slate-700">
+      <div className="sticky top-2 z-10 rounded-2xl border border-[#d6e0ea] bg-[#f9fbfe]/95 p-4 shadow-[0_6px_18px_rgba(15,39,71,0.08)] backdrop-blur-sm sm:p-5">
+        <label htmlFor="search" className="mb-2 block text-sm font-medium text-[#29415f]">
           {t.searchEtf}
         </label>
         <input
@@ -325,34 +389,26 @@ export default function EtfList() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t.searchPlaceholder}
-          className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 outline-none ring-0 transition focus:border-slate-600"
+          className="h-11 w-full rounded-xl border border-[#c7d4e4] bg-white px-4 text-[#1b304c] outline-none ring-0 transition focus:border-[#5a7598]"
         />
 
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <select
-            value={sortField}
-            onChange={(e) => setSortField(e.target.value as SortField)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            value={sortPreset}
+            onChange={(e) => handleSortPresetChange(e.target.value as SortPreset)}
+            className="h-11 rounded-xl border border-[#c7d4e4] bg-white px-3 text-sm text-[#2a3f5f]"
           >
-            {(Object.keys(sortFieldLabels) as SortField[]).map((field) => (
-              <option key={field} value={field}>
-                {t.sortBy}: {sortFieldLabels[field]}
+            {sortPresetOptions.map((preset) => (
+              <option key={preset.value} value={preset.value}>
+                {t.sortBy}: {preset.label}
               </option>
             ))}
           </select>
 
-          <button
-            type="button"
-            onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-          >
-            {t.direction}: {sortDirection === 'asc' ? t.asc : t.desc}
-          </button>
-
           <select
             value={issuerFilter}
             onChange={(e) => setIssuerFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            className="h-11 rounded-xl border border-[#c7d4e4] bg-white px-3 text-sm text-[#2a3f5f]"
           >
             <option value="all">{t.issuerAll}</option>
             {issuerOptions.map((issuer) => (
@@ -365,7 +421,7 @@ export default function EtfList() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            className="h-11 rounded-xl border border-[#c7d4e4] bg-white px-3 text-sm text-[#2a3f5f]"
           >
             <option value="all">{t.categoryAll}</option>
             {categoryOptions.map((category) => (
@@ -380,8 +436,8 @@ export default function EtfList() {
           <button
             type="button"
             onClick={() => setViewMode('cards')}
-            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-              viewMode === 'cards' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700'
+            className={`h-11 flex-1 rounded-xl border px-3 text-sm font-semibold transition ${
+              viewMode === 'cards' ? 'border-[#0f2747] bg-[#0f2747] text-white' : 'border-[#c7d4e4] bg-white text-[#2a3f5f]'
             }`}
           >
             {t.cards}
@@ -389,18 +445,20 @@ export default function EtfList() {
           <button
             type="button"
             onClick={() => setViewMode('table')}
-            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-              viewMode === 'table' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700'
+            className={`h-11 flex-1 rounded-xl border px-3 text-sm font-semibold transition ${
+              viewMode === 'table' ? 'border-[#0f2747] bg-[#0f2747] text-white' : 'border-[#c7d4e4] bg-white text-[#2a3f5f]'
             }`}
           >
             {t.table}
           </button>
         </div>
 
-        <p className="mt-2 text-sm text-slate-600">{statsText}</p>
-        <p className="mt-1 text-xs text-slate-500">
-          {t.lastUpdated}: {formatDateTime(lastUpdatedAt)}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-[#435a79]">{statsText}</p>
+          <p className="text-xs text-[#6a7f97]">
+            {t.lastUpdated}: {formatDateTime(lastUpdatedAt)}
+          </p>
+        </div>
       </div>
 
       {error ? (
@@ -420,13 +478,13 @@ export default function EtfList() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {loading && items.length === 0
             ? Array.from({ length: 6 }).map((_, idx) => (
-                <article key={`skeleton-${idx}`} className="animate-pulse rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
-                  <div className="h-3 w-16 rounded bg-slate-200" />
-                  <div className="mt-3 h-4 w-2/3 rounded bg-slate-200" />
-                  <div className="mt-2 h-3 w-1/2 rounded bg-slate-200" />
+                <article key={`skeleton-${idx}`} className="animate-pulse rounded-2xl border border-[#d6e0ea] bg-[#fbfdff] p-3 shadow-[0_4px_12px_rgba(15,39,71,0.06)]">
+                  <div className="h-3 w-16 rounded bg-[#dde6f0]" />
+                  <div className="mt-3 h-4 w-2/3 rounded bg-[#dde6f0]" />
+                  <div className="mt-2 h-3 w-1/2 rounded bg-[#dde6f0]" />
                   <div className="mt-4 flex gap-2">
-                    <div className="h-6 w-24 rounded-full bg-slate-200" />
-                    <div className="h-6 w-20 rounded-full bg-slate-200" />
+                    <div className="h-6 w-24 rounded-full bg-[#dde6f0]" />
+                    <div className="h-6 w-20 rounded-full bg-[#dde6f0]" />
                   </div>
                 </article>
               ))
@@ -434,29 +492,29 @@ export default function EtfList() {
 
           {filteredAndSorted.map((etf) => (
             <Link key={etf.symbol} href={`/etf/${etf.symbol}`} className="group block">
-              <article className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md">
-                <p className="text-xs font-semibold tracking-wide text-slate-500">{etf.symbol}</p>
-                <h2 className="mt-1 text-base font-semibold text-slate-900">{etf.name || etf.symbol}</h2>
-                <p className="mt-1 text-sm text-slate-600">{etf.issuer || t.noData}</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                  <span className="rounded-full bg-slate-100 px-2 py-1">
+              <article className="rounded-2xl border border-[#d6e0ea] bg-[#fbfdff] p-3 shadow-[0_4px_12px_rgba(15,39,71,0.06)] transition group-hover:-translate-y-0.5 group-hover:shadow-[0_8px_18px_rgba(15,39,71,0.11)]">
+                <p className="text-xs font-semibold tracking-wide text-[#5f738d]">{etf.symbol}</p>
+                <h2 className="mt-1 text-base font-semibold text-[#132844]">{etf.name || etf.symbol}</h2>
+                <p className="mt-1 text-sm text-[#506784]">{etf.issuer || t.noData}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#4f6683]">
+                  <span className="rounded-full bg-[#edf3fa] px-2 py-0.5">
                     {localizeCategory(etf.category, language) || t.noData}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1">
+                  <span className="rounded-full bg-[#edf3fa] px-2 py-0.5">
                     {t.er}: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.noData}
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                    <p className="text-[10px] text-slate-500">{t.y1}</p>
+                  <div className="rounded-lg border border-[#d9e3ee] bg-[#f3f7fc] px-2 py-1">
+                    <p className="text-[10px] text-[#66809c]">{t.y1}</p>
                     <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                    <p className="text-[10px] text-slate-500">{t.y3}</p>
+                  <div className="rounded-lg border border-[#d9e3ee] bg-[#f3f7fc] px-2 py-1">
+                    <p className="text-[10px] text-[#66809c]">{t.y3}</p>
                     <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['3Y'])}`}>{formatPct(etf.period_returns_pct?.['3Y'])}</p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                    <p className="text-[10px] text-slate-500">{t.y5}</p>
+                  <div className="rounded-lg border border-[#d9e3ee] bg-[#f3f7fc] px-2 py-1">
+                    <p className="text-[10px] text-[#66809c]">{t.y5}</p>
                     <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</p>
                   </div>
                 </div>
@@ -465,19 +523,19 @@ export default function EtfList() {
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-black/10 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-[#d6e0ea] bg-[#fbfdff] shadow-[0_4px_12px_rgba(15,39,71,0.06)]">
           <table className="min-w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+              <tr className="border-b border-[#d9e3ee] bg-[#f1f6fc] text-[#506884]">
                 {columnHeaders.map((header) => (
                   <th key={header.key} className="px-4 py-3 font-medium">
                     <button
                       type="button"
                       onClick={() => handleColumnSort(header.key)}
-                      className="inline-flex items-center gap-1 hover:text-slate-900"
+                      className="inline-flex items-center gap-1 hover:text-[#132844]"
                     >
                       <span>{header.label}</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-[#8aa0bb]">
                         {sortField === header.key ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
                       </span>
                     </button>
@@ -487,16 +545,16 @@ export default function EtfList() {
             </thead>
             <tbody>
               {filteredAndSorted.map((etf) => (
-                <tr key={etf.symbol} className="border-b border-slate-100">
-                  <td className="px-4 py-3 font-semibold text-slate-900">
+                <tr key={etf.symbol} className="border-b border-[#e5edf6]">
+                  <td className="px-4 py-3 font-semibold text-[#132844]">
                     <Link href={`/etf/${etf.symbol}`} className="hover:underline">
                       {etf.symbol}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-800">{etf.name || t.noData}</td>
-                  <td className="px-4 py-3 text-slate-600">{etf.issuer || t.noData}</td>
-                  <td className="px-4 py-3 text-slate-600">{localizeCategory(etf.category, language) || t.noData}</td>
-                  <td className="px-4 py-3 text-slate-800">{etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.noData}</td>
+                  <td className="px-4 py-3 text-[#2f4664]">{etf.name || t.noData}</td>
+                  <td className="px-4 py-3 text-[#506784]">{etf.issuer || t.noData}</td>
+                  <td className="px-4 py-3 text-[#506784]">{localizeCategory(etf.category, language) || t.noData}</td>
+                  <td className="px-4 py-3 text-[#2f4664]">{etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.noData}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['3Y'])}`}>{formatPct(etf.period_returns_pct?.['3Y'])}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</td>
@@ -508,7 +566,7 @@ export default function EtfList() {
       )}
 
       {!loading && !error && filteredAndSorted.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">{t.noMatch}</div>
+        <div className="rounded-2xl border border-[#d9e3ee] bg-[#fbfdff] p-6 text-center text-sm text-[#506784]">{t.noMatch}</div>
       ) : null}
     </section>
   )
