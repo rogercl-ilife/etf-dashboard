@@ -15,6 +15,9 @@ const rangeToMonths: Record<RangeKey, number> = {
   '5Y': 60,
 }
 
+const PAGE_SIZE = 1000
+const MAX_PAGES = 8
+
 function toStartDate(range: RangeKey) {
   const date = new Date()
   date.setUTCHours(0, 0, 0, 0)
@@ -38,18 +41,31 @@ export async function GET(request: Request, { params }: Params) {
   const rangeParam = (searchParams.get('range') || '1Y').toUpperCase()
   const range: RangeKey = isRangeKey(rangeParam) ? rangeParam : '1Y'
 
-  const { data, error } = await supabase
-    .from('etf_prices_daily')
-    .select('trade_date,close')
-    .eq('symbol', symbol)
-    .gte('trade_date', toStartDate(range))
-    .order('trade_date', { ascending: true })
+  const startDate = toStartDate(range)
+  const allRows: Array<{ trade_date: string; close: number | null }> = []
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const from = page * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+
+    const { data, error } = await supabase
+      .from('etf_prices_daily')
+      .select('trade_date,close')
+      .eq('symbol', symbol)
+      .gte('trade_date', startDate)
+      .order('trade_date', { ascending: true })
+      .range(from, to)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    const batch = data || []
+    allRows.push(...batch)
+    if (batch.length < PAGE_SIZE) break
   }
 
-  const chart = (data || [])
+  const chart = allRows
     .filter((row) => row.close != null)
     .map((row) => ({
       date: row.trade_date,
