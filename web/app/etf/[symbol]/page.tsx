@@ -1,40 +1,73 @@
-'use client'
+import type { Metadata } from 'next'
+import { createClient } from '@supabase/supabase-js'
+import EtfDetailPageClient from './etf-detail-page-client'
 
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import EtfDetailClient from './etf-detail-client'
-import { useLanguage } from '@/app/components/language-context'
-
-const TEXT = {
-  en: {
-    back: 'Back to ETF List',
-  },
-  'zh-TW': {
-    back: '返回 ETF 清單',
-  },
-  'zh-CN': {
-    back: '返回 ETF 列表',
-  },
+type Params = {
+  params: Promise<{ symbol: string }>
 }
 
-export default function EtfDetailPage() {
-  const { language } = useLanguage()
-  const t = TEXT[language]
-  const params = useParams<{ symbol: string }>()
-  const normalized = (params?.symbol || '').trim().toUpperCase()
+function getSymbol(rawSymbol: string) {
+  return rawSymbol.trim().toUpperCase()
+}
 
-  return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:border-slate-500 hover:text-slate-900"
-        >
-          {t.back}
-        </Link>
-      </div>
+async function getEtfName(symbol: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-      <EtfDetailClient symbol={normalized} />
-    </main>
-  )
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  const { data, error } = await supabase.from('etfs').select('name').eq('symbol', symbol).maybeSingle()
+
+  if (error || !data?.name) {
+    return null
+  }
+
+  return String(data.name)
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { symbol: rawSymbol } = await params
+  const symbol = getSymbol(rawSymbol)
+
+  if (!symbol) {
+    return {
+      title: 'ETF Detail',
+      description: 'ETF 詳細資訊頁。',
+    }
+  }
+
+  const etfName = await getEtfName(symbol)
+  const title = etfName ? `${symbol} - ${etfName}` : `${symbol} ETF Detail`
+  const description = etfName
+    ? `${symbol} (${etfName}) 的最新價格、配息、報酬與持股資訊。`
+    : `${symbol} 的最新價格、配息、報酬與持股資訊。`
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/etf/${symbol}`,
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `/etf/${symbol}`,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  }
+}
+
+export default async function EtfDetailPage({ params }: Params) {
+  const { symbol: rawSymbol } = await params
+  const symbol = getSymbol(rawSymbol)
+
+  return <EtfDetailPageClient symbol={symbol} />
 }

@@ -3,6 +3,8 @@
 ## Scope
 - Home page: `/`
 - ETF detail page: `/etf/VOO` (or any symbol that has data)
+- API routes
+- SEO routes (`/sitemap.xml`, `/robots.txt`)
 
 ## Preconditions
 - `npm run dev` is running in `web/`
@@ -37,3 +39,12 @@
 ## Pass Criteria
 - [ ] All checks pass in at least one desktop browser
 - [ ] No console errors during the test flow
+
+## API (`/api/*`)
+- [ ] `/api/etfs?limit=20` returns 200 and `data` array
+- [ ] `/api/etfs/VOO` returns 200 with `data.symbol === "VOO"`
+- [ ] `/api/etfs/VOO/chart?range=1Y` returns 200 with chart data array
+
+## SEO Routes
+- [ ] `/sitemap.xml` returns 200 and contains homepage URL
+- [ ] `/robots.txt` returns 200 and contains `Sitemap:`

@@ -1,53 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ETF Dashboard (Web)
 
-## Getting Started
+MVP for ETF list/detail experience with Next.js + Supabase, including analytics and feedback APIs.
 
-First, run the development server:
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-## Optional: GA4 Tracking
+## Required Environment Variables
 
-If you want Google Analytics 4 enabled, set:
+Create `.env.local`:
 
 ```bash
-NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=... # optional but recommended for server APIs
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX # optional
 ```
 
 Notes:
-- If this variable is not set, GA4 is disabled.
-- Existing Supabase-based analytics/feedback still work without GA4.
+- `NEXT_PUBLIC_SITE_URL` is used by SEO metadata, sitemap, and robots.
+- If `SUPABASE_SERVICE_ROLE_KEY` is missing, server API falls back to anon key.
 
-## Feedback Inbox
+## Week 6 Deployment Checklist (Vercel + Production Supabase)
 
-The app includes `/feedback` for feedback triage (search/filter/status update).
-Run `scripts/week6_feedback_analytics_setup.sql` and `scripts/week7_feedback_workflow_setup.sql` first.
+1. Push latest code to your git remote.
+2. Import `web/` into Vercel as a Next.js project.
+3. Set Vercel environment variables (Production/Preview):
+   - `NEXT_PUBLIC_SITE_URL=https://<your-domain>`
+   - `NEXT_PUBLIC_SUPABASE_URL=...`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
+   - `SUPABASE_SERVICE_ROLE_KEY=...`
+   - `NEXT_PUBLIC_GA_MEASUREMENT_ID=...` (optional)
+4. In Supabase SQL Editor, run:
+   - `scripts/week6_feedback_analytics_setup.sql`
+   - `scripts/week7_feedback_workflow_setup.sql`
+5. Deploy to Production from Vercel.
+6. Verify:
+   - `/sitemap.xml`
+   - `/robots.txt`
+   - Home page `/`
+   - Detail page `/etf/VOO`
+   - APIs `/api/etfs`, `/api/etfs/VOO`, `/api/etfs/VOO/chart?range=1Y`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## SEO Coverage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Global metadata in `app/layout.tsx` (title template, description, Open Graph, Twitter, canonical).
+- Dynamic detail-page metadata in `app/etf/[symbol]/page.tsx`.
+- Sitemap in `app/sitemap.ts`.
+- Robots in `app/robots.ts`.
 
-## Learn More
+## Build & Lint
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+```
