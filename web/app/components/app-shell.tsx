@@ -12,7 +12,7 @@ const LANGUAGE_OPTIONS: Array<{ value: Language; short: string; label: string }>
 const TEXT = {
   en: {
     appTitle: 'ETF DASHBOARD',
-    techStack: 'Version 1.0 · Focused long-term ETF research',
+    techStack: 'Version 1.0 · Turn market data into actionable long-term investing decisions.',
     language: 'Language',
     stats: 'Read Stats',
     feedback: 'Feedback',
@@ -20,7 +20,7 @@ const TEXT = {
   },
   'zh-TW': {
     appTitle: 'ETF 儀表板',
-    techStack: 'Version 1.0 · 專注長期投資的 ETF 研究工具',
+    techStack: 'Version 1.0 · 把複雜資料整理成可行動的重點，支持你的人生長期投資規劃。',
     language: '語言',
     stats: '閱讀統計',
     feedback: '回饋管理',
@@ -28,7 +28,7 @@ const TEXT = {
   },
   'zh-CN': {
     appTitle: 'ETF 仪表盘',
-    techStack: 'Version 1.0 · 专注长期投资的 ETF 研究工具',
+    techStack: 'Version 1.0 · 把复杂数据整理为可行动的重点，支持你的人生长期投资规划。',
     language: '语言',
     stats: '阅读统计',
     feedback: '反馈管理',
