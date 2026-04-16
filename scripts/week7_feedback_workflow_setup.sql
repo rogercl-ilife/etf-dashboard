@@ -11,17 +11,17 @@ create index if not exists idx_user_feedback_status_created_at
 
 alter table public.user_feedback enable row level security;
 
-drop policy if exists "anon_select_feedback" on public.user_feedback;
-create policy "anon_select_feedback"
+drop policy if exists "authenticated_select_feedback" on public.user_feedback;
+create policy "authenticated_select_feedback"
   on public.user_feedback
   for select
-  to anon
-  using (true);
+  to authenticated
+  using (auth.uid() is not null);
 
-drop policy if exists "anon_update_feedback" on public.user_feedback;
-create policy "anon_update_feedback"
+drop policy if exists "authenticated_update_feedback" on public.user_feedback;
+create policy "authenticated_update_feedback"
   on public.user_feedback
   for update
-  to anon
-  using (true)
-  with check (true);
+  to authenticated
+  using (auth.uid() is not null)
+  with check (auth.uid() is not null);

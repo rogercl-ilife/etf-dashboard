@@ -16,6 +16,10 @@ function isMissingWorkflowColumnError(error: { code?: string; message?: string }
   return error.code === '42703' || error.message?.includes('column') || false
 }
 
+function hasServiceRole() {
+  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim())
+}
+
 export async function POST(request: Request) {
   let payload: unknown
   try {
@@ -71,6 +75,13 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  if (!hasServiceRole()) {
+    return NextResponse.json(
+      { error: 'SUPABASE_SERVICE_ROLE_KEY is required for feedback inbox read access.' },
+      { status: 500 },
+    )
+  }
+
   const { searchParams } = new URL(request.url)
   const q = (searchParams.get('q') || '').trim()
   const statusFilter = normalizeStatus(searchParams.get('status'))
@@ -134,6 +145,13 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  if (!hasServiceRole()) {
+    return NextResponse.json(
+      { error: 'SUPABASE_SERVICE_ROLE_KEY is required for feedback status updates.' },
+      { status: 500 },
+    )
+  }
+
   let payload: unknown
   try {
     payload = await request.json()

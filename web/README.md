@@ -25,7 +25,8 @@ NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX # optional
 
 Notes:
 - `NEXT_PUBLIC_SITE_URL` is used by SEO metadata, sitemap, and robots.
-- If `SUPABASE_SERVICE_ROLE_KEY` is missing, server API falls back to anon key.
+- `SUPABASE_SERVICE_ROLE_KEY` is required for admin-style server APIs (feedback inbox / read analytics).
+- If `SUPABASE_SERVICE_ROLE_KEY` is missing, those APIs may fail under strict RLS policies.
 
 ## Week 6 Deployment Checklist (Vercel + Production Supabase)
 
@@ -40,6 +41,7 @@ Notes:
 4. In Supabase SQL Editor, run:
    - `scripts/week6_feedback_analytics_setup.sql`
    - `scripts/week7_feedback_workflow_setup.sql`
+   - `scripts/week9_security_policy_hardening.sql`
 5. Deploy to Production from Vercel.
 6. Verify:
    - `/sitemap.xml`

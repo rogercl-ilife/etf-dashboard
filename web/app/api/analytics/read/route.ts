@@ -7,6 +7,10 @@ function normalizeScope(raw: string | null): Scope {
   return raw === 'symbol' ? 'symbol' : 'global'
 }
 
+function hasServiceRole() {
+  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim())
+}
+
 export async function POST(request: Request) {
   let payload: unknown
   try {
@@ -48,6 +52,13 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  if (!hasServiceRole()) {
+    return NextResponse.json(
+      { error: 'SUPABASE_SERVICE_ROLE_KEY is required for read analytics access.' },
+      { status: 500 },
+    )
+  }
+
   const { searchParams } = new URL(request.url)
   const scope = normalizeScope(searchParams.get('scope'))
   const symbol = (searchParams.get('symbol') || '').trim().toUpperCase()

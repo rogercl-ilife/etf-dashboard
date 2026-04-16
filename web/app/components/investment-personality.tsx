@@ -292,6 +292,16 @@ function getPersonaOrder(topPersona: Persona): Persona[] {
   return priorities.sort((a, b) => Math.abs(PERSONA_SCORE[a] - PERSONA_SCORE[topPersona]) - Math.abs(PERSONA_SCORE[b] - PERSONA_SCORE[topPersona]))
 }
 
+function getDrawdownTone(persona: Persona) {
+  if (persona === 'stability') {
+    return 'bg-[#e9f8ef] text-[#1f7a3d]'
+  }
+  if (persona === 'balanced') {
+    return 'bg-[#fff7db] text-[#8a6100]'
+  }
+  return 'bg-[#ffe9e9] text-[#a12828]'
+}
+
 function OptionButton({
   active,
   label,
@@ -301,6 +311,11 @@ function OptionButton({
   label: string
   onClick: () => void
 }) {
+  const compactLabel = label.trim()
+  const match = compactLabel.match(/^(.*?)(\s*[（(].*[)）])$/)
+  const head = match ? match[1].trim() : compactLabel
+  const tail = match ? match[2].trim() : null
+
   return (
     <button
       type="button"
@@ -311,7 +326,8 @@ function OptionButton({
           : 'border-[#c8d5e5] bg-white text-[#364d6a] hover:border-[#95aac3] hover:bg-[#f7fbff]'
       }`}
     >
-      {label}
+      <span className="block">{head}</span>
+      {tail ? <span className="mt-0.5 block">{tail}</span> : null}
     </button>
   )
 }
@@ -410,6 +426,7 @@ export default function InvestmentPersonality() {
             {personaOrder.map((persona, index) => {
               const details = t.personas[persona]
               const allocation = PERSONA_ALLOCATIONS[persona]
+              const drawdownTone = getDrawdownTone(persona)
               const isTop = index === 0
               return (
                 <article
@@ -433,17 +450,21 @@ export default function InvestmentPersonality() {
                     {t.labels.profileFit}: {details.fit}
                   </p>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                    <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      {t.labels.maxDrawdown}: {details.drawdown}
+                    <p className={`rounded-lg px-2 py-1 ${drawdownTone}`}>
+                      <span className="block">{t.labels.maxDrawdown}</span>
+                      <span className="block">{details.drawdown}</span>
                     </p>
                     <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      {t.labels.bonds}: {allocation.bonds}
+                      <span className="block">{t.labels.bonds}</span>
+                      <span className="block">{allocation.bonds}</span>
                     </p>
                     <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      {t.labels.dividend}: {allocation.dividend}
+                      <span className="block">{t.labels.dividend}</span>
+                      <span className="block">{allocation.dividend}</span>
                     </p>
                     <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      {t.labels.equities}: {allocation.equities}
+                      <span className="block">{t.labels.equities}</span>
+                      <span className="block">{allocation.equities}</span>
                     </p>
                   </div>
                   <p className="mt-3 text-xs italic text-[#556d8b]">{details.quote}</p>

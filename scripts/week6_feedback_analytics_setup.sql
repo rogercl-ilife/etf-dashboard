@@ -35,18 +35,14 @@ create policy "anon_insert_feedback"
   on public.user_feedback
   for insert
   to anon
-  with check (true);
+  with check (char_length(message) between 1 and 2000);
 
 drop policy if exists "anon_insert_read_events" on public.user_read_events;
 create policy "anon_insert_read_events"
   on public.user_read_events
   for insert
   to anon
-  with check (true);
-
-drop policy if exists "anon_select_read_events" on public.user_read_events;
-create policy "anon_select_read_events"
-  on public.user_read_events
-  for select
-  to anon
-  using (true);
+  with check (
+    char_length(page_path) > 0
+    and char_length(session_id) > 0
+  );

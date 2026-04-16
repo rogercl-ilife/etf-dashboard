@@ -106,3 +106,31 @@ To enable feedback status management (`new / in_progress / done`) for `/feedback
 -- execute in Supabase SQL Editor
 -- file: scripts/week7_feedback_workflow_setup.sql
 ```
+
+## Week 9: Security Warning Hardening
+
+If Security Advisor shows `RLS Policy Always True` warnings for feedback/read tables, run:
+
+```sql
+-- execute in Supabase SQL Editor
+-- file: scripts/week9_security_policy_hardening.sql
+```
+
+This script:
+- Removes permissive anonymous read/update policies
+- Keeps anonymous insert only (for feedback submit and read-event tracking)
+- Adds authenticated read/update policies (non-`true` expressions) for admin use
+
+## Week 8: Security Advisor RLS Fix
+
+If Security Advisor shows `RLS Disabled in Public` for ETF tables, run:
+
+```sql
+-- execute in Supabase SQL Editor
+-- file: scripts/week8_rls_public_tables.sql
+```
+
+This script:
+- Enables RLS on `etfs`, `etf_dividends`, `etf_snapshots`, `etf_prices_daily`, `etf_holdings`, `job_logs`
+- Adds read-only policies for app-facing ETF tables (`anon` + `authenticated`)
+- Keeps `job_logs` private (no public read policy)
