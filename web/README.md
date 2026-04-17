@@ -63,6 +63,10 @@ Required environment variables:
 - `FEEDBACK_DIGEST_TO` (comma-separated recipients)
 - `CRON_SECRET` (recommended; protects cron endpoint)
 
+Optional environment variables:
+- `FEEDBACK_DIGEST_SEND_WHEN_ZERO` (default: `true`)
+  - Set to `false` to skip sending email when there are 0 new feedback entries in the last 24 hours.
+
 How it works:
 - Reads feedback rows from the last 24 hours.
 - Computes total count, top pages, top languages, and status breakdown.

@@ -33,6 +33,14 @@ function asList(value: string | undefined) {
     .filter(Boolean)
 }
 
+function parseBooleanFlag(value: string | undefined, defaultValue: boolean) {
+  if (!value) return defaultValue
+  const normalized = value.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false
+  return defaultValue
+}
+
 function topCounts(values: Array<string | null | undefined>, limit: number) {
   const map = new Map<string, number>()
   for (const raw of values) {
@@ -98,6 +106,7 @@ export async function GET(request: Request) {
   const resendApiKey = process.env.RESEND_API_KEY?.trim()
   const from = process.env.FEEDBACK_DIGEST_FROM?.trim()
   const to = asList(process.env.FEEDBACK_DIGEST_TO)
+  const sendWhenZero = parseBooleanFlag(process.env.FEEDBACK_DIGEST_SEND_WHEN_ZERO, true)
 
   if (!resendApiKey || !from || to.length === 0) {
     return NextResponse.json(
@@ -145,6 +154,17 @@ export async function GET(request: Request) {
     topLanguages,
     statusCounts,
   })
+
+  if (total === 0 && !sendWhenZero) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: 'No new feedback in last 24 hours',
+      total,
+      window_start_utc: sinceIso,
+      recipients: to,
+    })
+  }
 
   const sendResp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
