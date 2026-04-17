@@ -77,8 +77,11 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   if (!hasServiceRole()) {
     return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY is required for feedback inbox read access.' },
-      { status: 500 },
+      {
+        code: 'FEEDBACK_INBOX_NOT_CONFIGURED',
+        error: 'Feedback inbox is not configured on the server.',
+      },
+      { status: 503 },
     )
   }
 
@@ -147,8 +150,11 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   if (!hasServiceRole()) {
     return NextResponse.json(
-      { error: 'SUPABASE_SERVICE_ROLE_KEY is required for feedback status updates.' },
-      { status: 500 },
+      {
+        code: 'FEEDBACK_INBOX_NOT_CONFIGURED',
+        error: 'Feedback inbox is not configured on the server.',
+      },
+      { status: 503 },
     )
   }
 

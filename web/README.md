@@ -50,6 +50,30 @@ Notes:
    - Detail page `/etf/VOO`
    - APIs `/api/etfs`, `/api/etfs/VOO`, `/api/etfs/VOO/chart?range=1Y`
 
+## Daily Feedback Digest (V1)
+
+This project includes a daily cron job for feedback summary:
+- Route: `/api/feedback/daily-digest`
+- Schedule: defined in `vercel.json` (`0 1 * * *`, i.e. 01:00 UTC daily)
+
+Required environment variables:
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RESEND_API_KEY`
+- `FEEDBACK_DIGEST_FROM` (example: `ETF Bot <onboarding@resend.dev>`)
+- `FEEDBACK_DIGEST_TO` (comma-separated recipients)
+- `CRON_SECRET` (recommended; protects cron endpoint)
+
+How it works:
+- Reads feedback rows from the last 24 hours.
+- Computes total count, top pages, top languages, and status breakdown.
+- Sends one digest email via Resend.
+
+Manual test:
+1. Ensure all env vars are set in Vercel Project Settings.
+2. Deploy.
+3. Trigger once via browser/curl with `Authorization: Bearer <CRON_SECRET>` to:
+   - `/api/feedback/daily-digest`
+
 ## SEO Coverage
 
 - Global metadata in `app/layout.tsx` (title template, description, Open Graph, Twitter, canonical).

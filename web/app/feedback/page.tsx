@@ -41,6 +41,7 @@ const TEXT = {
     markInProgress: 'Mark In Progress',
     markDone: 'Mark Done',
     saving: 'Saving...',
+    notConfigured: 'Feedback inbox is not configured yet. Add SUPABASE_SERVICE_ROLE_KEY on the server and redeploy.',
   },
   'zh-TW': {
     title: '回饋收件匣',
@@ -62,6 +63,7 @@ const TEXT = {
     markInProgress: '標記處理中',
     markDone: '標記已完成',
     saving: '儲存中...',
+    notConfigured: '回饋管理尚未啟用。請在伺服器設定 SUPABASE_SERVICE_ROLE_KEY 後重新部署。',
   },
   'zh-CN': {
     title: '反馈收件箱',
@@ -83,7 +85,14 @@ const TEXT = {
     markInProgress: '标记处理中',
     markDone: '标记已完成',
     saving: '保存中...',
+    notConfigured: '反馈管理尚未启用。请在服务器设置 SUPABASE_SERVICE_ROLE_KEY 后重新部署。',
   },
+}
+
+function toUiErrorMessage(json: unknown, fallback: string, notConfigured: string) {
+  const body = (json || {}) as { code?: unknown; error?: unknown }
+  if (body.code === 'FEEDBACK_INBOX_NOT_CONFIGURED') return notConfigured
+  return typeof body.error === 'string' && body.error.trim() ? body.error : fallback
 }
 
 function statusLabel(status: FeedbackStatus, t: typeof TEXT.en) {
@@ -132,9 +141,7 @@ export default function FeedbackPage() {
           signal: controller.signal,
         })
         const json = await res.json()
-        if (!res.ok) {
-          throw new Error(json.error || t.failed)
-        }
+        if (!res.ok) throw new Error(toUiErrorMessage(json, t.failed, t.notConfigured))
         setItems(Array.isArray(json?.data) ? json.data : [])
       } catch (e: unknown) {
         if (e instanceof DOMException && e.name === 'AbortError') return
@@ -157,7 +164,7 @@ export default function FeedbackPage() {
         body: JSON.stringify({ id, status }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : t.failed)
+      if (!res.ok) throw new Error(toUiErrorMessage(json, t.failed, t.notConfigured))
       setRefreshToken((v) => v + 1)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t.failed)
