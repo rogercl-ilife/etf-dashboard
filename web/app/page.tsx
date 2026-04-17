@@ -52,7 +52,7 @@ const TEXT: Record<
     flowHint: 'Start with persona fit, then filter and compare ETFs.',
     personality: {
       title: 'ETF Persona Quick Guide',
-      summary: 'Use 3 dimensions to find a practical starting allocation.',
+      summary: 'Use 4 dimensions to find a practical starting allocation.',
     },
     list: {
       title: 'ETF Market Overview',
@@ -67,7 +67,7 @@ const TEXT: Record<
     flowHint: '先做人格判斷，再篩選與比較 ETF。',
     personality: {
       title: 'ETF 投資人格快速判斷',
-      summary: '用 3 個維度找到可執行的起手配置。',
+      summary: '用 4 個維度找到可執行的起手配置。',
     },
     list: {
       title: 'ETF 市場總覽',
@@ -82,7 +82,7 @@ const TEXT: Record<
     flowHint: '先做人格判断，再筛选与比较 ETF。',
     personality: {
       title: 'ETF 投资人格快速判断',
-      summary: '用 3 个维度找到可执行的起手配置。',
+      summary: '用 4 个维度找到可执行的起手配置。',
     },
     list: {
       title: 'ETF 市场总览',
@@ -147,9 +147,11 @@ export default function Home() {
         </button>
         <div
           id="personality-panel"
-          className={`overflow-hidden transition-all duration-200 ${personalityOpen ? 'max-h-[2200px] opacity-100' : 'max-h-0 opacity-0'}`}
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ${
+            personalityOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          }`}
         >
-          <div className="px-2 pb-2 sm:px-3 sm:pb-3">
+          <div className="min-h-0 overflow-hidden px-2 pb-2 sm:px-3 sm:pb-3">
             <InvestmentPersonality />
           </div>
         </div>
@@ -186,9 +188,11 @@ export default function Home() {
         </button>
         <div
           id="etf-list-panel"
-          className={`overflow-hidden transition-all duration-200 ${listOpen ? 'max-h-[3200px] opacity-100' : 'max-h-0 opacity-0'}`}
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ${
+            listOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          }`}
         >
-          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="min-h-0 overflow-hidden px-4 pb-4 sm:px-6 sm:pb-6">
             <EtfList />
           </div>
         </div>
