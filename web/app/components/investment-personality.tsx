@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLanguage, type Language } from '@/app/components/language-context'
 
 type TimeHorizon = 'short' | 'medium' | 'long'
@@ -21,6 +21,54 @@ type PersonaEtfBuckets = {
   equities: string[]
 }
 
+type PersonaBucketWeights = {
+  bonds: number
+  dividend: number
+  equities: number
+}
+
+type AllocationInput = {
+  symbol: string
+  weight_pct: number
+}
+
+type SimulationData = {
+  weighted_baseline_annual_return_pct: number
+  projection: {
+    base_end_value: number
+    bull_end_value: number
+    bear_end_value: number
+  }
+  estimated_dividend: {
+    portfolio_ttm_dividend_yield_pct: number | null
+    estimated_annual_dividend_amount: number | null
+    estimated_monthly_dividend_amount: number | null
+  }
+  warnings: string[]
+}
+
+type LookthroughData = {
+  top_stock_exposures: Array<{
+    holding_symbol: string | null
+    holding_name: string | null
+    portfolio_exposure_pct: number
+  }>
+  risk_summary: {
+    top1_pct: number
+    top5_pct: number
+    hhi: number
+    alerts: string[]
+  }
+  warnings: string[]
+}
+
+type PlanTier = 'free' | 'member'
+type FeatureKey = 'basic_simulation' | 'lookthrough_top10' | 'lookthrough_full' | 'advanced_simulation' | 'export_csv'
+type FeatureAccessData = {
+  plan: PlanTier
+  features: Record<FeatureKey, PlanTier>
+}
+
 const PERSONA_ALLOCATIONS: Record<Persona, PersonaAllocation> = {
   stability: {
     bonds: '50-70%',
@@ -37,6 +85,12 @@ const PERSONA_ALLOCATIONS: Record<Persona, PersonaAllocation> = {
     dividend: '0-10%',
     equities: '80-100%',
   },
+}
+
+const PERSONA_BUCKET_WEIGHTS: Record<Persona, PersonaBucketWeights> = {
+  stability: { bonds: 60, dividend: 25, equities: 15 },
+  balanced: { bonds: 30, dividend: 10, equities: 60 },
+  growth: { bonds: 10, dividend: 5, equities: 85 },
 }
 
 const PERSONA_ETF_RECOMMENDATIONS: Record<Persona, PersonaEtfBuckets> = {
@@ -87,6 +141,8 @@ const EXPERIENCE_SCORE: Record<ExperienceLevel, number> = {
   experienced: 2,
 }
 
+const SAMPLE_AMOUNT_USD = 10000
+
 const TEXT: Record<
   Language,
   {
@@ -115,6 +171,29 @@ const TEXT: Record<
       topMatch: string
       recommendedEtfs: string
       basedOnUniverse: string
+      analysisTitle: string
+      sampleAmount: string
+      annualReturn: string
+      projectedValueBase: string
+      projectedValueBull: string
+      projectedValueBear: string
+      estimatedYield: string
+      estimatedDividendYear: string
+      estimatedDividendMonth: string
+      lookthroughTitle: string
+      top1Exposure: string
+      top5Exposure: string
+      hhi: string
+      topHoldings: string
+      analysisLoading: string
+      analysisError: string
+      warnings: string
+      freeBadge: string
+      memberBadge: string
+      gatedFeaturesTitle: string
+      gatedLookthroughFull: string
+      gatedAdvancedSimulation: string
+      gatedExport: string
     }
     alerts: {
       beginnerHighRisk: string
@@ -173,6 +252,29 @@ const TEXT: Record<
       topMatch: 'Top Match',
       recommendedEtfs: 'Suggested ETF list',
       basedOnUniverse: 'Based on current 52-ETF universe',
+      analysisTitle: 'Quick simulation',
+      sampleAmount: 'Sample amount',
+      annualReturn: 'Estimated annual return',
+      projectedValueBase: 'Base scenario value',
+      projectedValueBull: 'Bull scenario value',
+      projectedValueBear: 'Bear scenario value',
+      estimatedYield: 'Estimated TTM dividend yield',
+      estimatedDividendYear: 'Estimated yearly dividend',
+      estimatedDividendMonth: 'Estimated monthly dividend',
+      lookthroughTitle: 'Look-through risk snapshot',
+      top1Exposure: 'Top 1 stock exposure',
+      top5Exposure: 'Top 5 stock exposure',
+      hhi: 'Concentration (HHI)',
+      topHoldings: 'Top underlying holdings',
+      analysisLoading: 'Running simulation...',
+      analysisError: 'Unable to load analysis right now.',
+      warnings: 'Notes',
+      freeBadge: 'Free',
+      memberBadge: 'Member',
+      gatedFeaturesTitle: 'Member features',
+      gatedLookthroughFull: 'Full look-through list (Top 50 + ETF contribution details)',
+      gatedAdvancedSimulation: 'Advanced simulation (custom assumptions and stress tests)',
+      gatedExport: 'Export CSV report',
     },
     alerts: {
       beginnerHighRisk:
@@ -244,6 +346,29 @@ const TEXT: Record<
       topMatch: '最符合',
       recommendedEtfs: '建議 ETF 清單',
       basedOnUniverse: '以下先以目前 52 檔 ETF 作為候選池',
+      analysisTitle: '快速試算',
+      sampleAmount: '試算金額',
+      annualReturn: '估計年化報酬',
+      projectedValueBase: '基準情境期末值',
+      projectedValueBull: '樂觀情境期末值',
+      projectedValueBear: '保守情境期末值',
+      estimatedYield: '估計近12月股息殖利率',
+      estimatedDividendYear: '估計年股息',
+      estimatedDividendMonth: '估計月股息',
+      lookthroughTitle: '穿透後風險摘要',
+      top1Exposure: '前1大個股曝險',
+      top5Exposure: '前5大個股曝險',
+      hhi: '集中度（HHI）',
+      topHoldings: '主要穿透持股',
+      analysisLoading: '試算中...',
+      analysisError: '目前無法載入試算結果。',
+      warnings: '提示',
+      freeBadge: '免費',
+      memberBadge: '會員',
+      gatedFeaturesTitle: '會員功能',
+      gatedLookthroughFull: '完整穿透清單（Top 50 + ETF 貢獻拆解）',
+      gatedAdvancedSimulation: '進階試算（自訂假設與壓力測試）',
+      gatedExport: 'CSV 匯出報告',
     },
     alerts: {
       beginnerHighRisk: '新手 + 積極風險：建議先用較小部位與分批進場，避免一次滿倉承擔波動。',
@@ -314,6 +439,29 @@ const TEXT: Record<
       topMatch: '最符合',
       recommendedEtfs: '建议 ETF 清单',
       basedOnUniverse: '以下先以目前 52 只 ETF 作为候选池',
+      analysisTitle: '快速试算',
+      sampleAmount: '试算金额',
+      annualReturn: '估计年化回报',
+      projectedValueBase: '基准情景期末值',
+      projectedValueBull: '乐观情景期末值',
+      projectedValueBear: '保守情景期末值',
+      estimatedYield: '估计近12月股息收益率',
+      estimatedDividendYear: '估计年股息',
+      estimatedDividendMonth: '估计月股息',
+      lookthroughTitle: '穿透后风险摘要',
+      top1Exposure: '前1大个股敞口',
+      top5Exposure: '前5大个股敞口',
+      hhi: '集中度（HHI）',
+      topHoldings: '主要穿透持股',
+      analysisLoading: '试算中...',
+      analysisError: '当前无法加载试算结果。',
+      warnings: '提示',
+      freeBadge: '免费',
+      memberBadge: '会员',
+      gatedFeaturesTitle: '会员功能',
+      gatedLookthroughFull: '完整穿透清单（Top 50 + ETF 贡献拆解）',
+      gatedAdvancedSimulation: '进阶试算（自定义假设与压力测试）',
+      gatedExport: 'CSV 导出报告',
     },
     alerts: {
       beginnerHighRisk: '新手 + 积极风险：建议先用较小仓位与分批进场，避免一次满仓承受波动。',
@@ -376,6 +524,50 @@ function getDrawdownTone(persona: Persona) {
   return 'bg-[#ffe9e9] text-[#a12828]'
 }
 
+function buildApiAllocations(persona: Persona): AllocationInput[] {
+  const buckets = PERSONA_ETF_RECOMMENDATIONS[persona]
+  const weights = PERSONA_BUCKET_WEIGHTS[persona]
+  const out = new Map<string, number>()
+
+  const allocateBucket = (symbols: string[], bucketWeight: number) => {
+    if (symbols.length === 0 || bucketWeight <= 0) return
+    const base = bucketWeight / symbols.length
+    symbols.forEach((symbol) => {
+      out.set(symbol, (out.get(symbol) || 0) + base)
+    })
+  }
+
+  allocateBucket(buckets.bonds, weights.bonds)
+  allocateBucket(buckets.dividend, weights.dividend)
+  allocateBucket(buckets.equities, weights.equities)
+
+  return Array.from(out.entries()).map(([symbol, weight_pct]) => ({
+    symbol,
+    weight_pct: Number(weight_pct.toFixed(6)),
+  }))
+}
+
+function alertText(language: Language, code: string) {
+  const map: Record<Language, Record<string, string>> = {
+    en: {
+      single_stock_over_8pct: 'High single-stock concentration (>8%).',
+      single_stock_over_5pct: 'Single-stock concentration warning (>5%).',
+      top5_over_25pct: 'Top-5 concentration is high (>25%).',
+    },
+    'zh-TW': {
+      single_stock_over_8pct: '單一個股集中度偏高（>8%）。',
+      single_stock_over_5pct: '單一個股集中度偏高（>5%）。',
+      top5_over_25pct: '前5大持股集中度偏高（>25%）。',
+    },
+    'zh-CN': {
+      single_stock_over_8pct: '单一个股集中度偏高（>8%）。',
+      single_stock_over_5pct: '单一个股集中度偏高（>5%）。',
+      top5_over_25pct: '前5大持股集中度偏高（>25%）。',
+    },
+  }
+  return map[language][code] || code
+}
+
 function OptionButton({
   active,
   label,
@@ -413,6 +605,11 @@ export default function InvestmentPersonality() {
   const [riskTolerance, setRiskTolerance] = useState<RiskTolerance>('moderate')
   const [incomeNeed, setIncomeNeed] = useState<IncomeNeed>('medium')
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>('intermediate')
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [simulation, setSimulation] = useState<SimulationData | null>(null)
+  const [lookthrough, setLookthrough] = useState<LookthroughData | null>(null)
+  const [featureAccess, setFeatureAccess] = useState<FeatureAccessData | null>(null)
 
   const topPersona = useMemo(
     () => inferPersona(timeHorizon, riskTolerance, incomeNeed, experienceLevel),
@@ -420,6 +617,107 @@ export default function InvestmentPersonality() {
   )
   const personaOrder = useMemo(() => getPersonaOrder(topPersona), [topPersona])
   const showBeginnerHighRiskAlert = experienceLevel === 'beginner' && riskTolerance === 'aggressive'
+  const pctFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(language === 'en' ? 'en-US' : language, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [language],
+  )
+  const usdFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(language === 'en' ? 'en-US' : language, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [language],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadFeatureAccess() {
+      try {
+        const resp = await fetch('/api/features/access')
+        const json = await resp.json()
+        if (!resp.ok) return
+        if (!cancelled) {
+          setFeatureAccess(json.data as FeatureAccessData)
+        }
+      } catch {
+        // Keep default null and render conservative badges.
+      }
+    }
+    loadFeatureAccess()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const allocations = buildApiAllocations(topPersona)
+
+    async function run() {
+      setAnalysisLoading(true)
+      setAnalysisError(null)
+
+      try {
+        const [simResp, riskResp] = await Promise.all([
+          fetch('/api/portfolio/simulate', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              amount: SAMPLE_AMOUNT_USD,
+              horizon_years: 5,
+              persona: topPersona,
+              allocations,
+            }),
+          }),
+          fetch('/api/portfolio/lookthrough', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              allocations,
+              top_n: 10,
+            }),
+          }),
+        ])
+
+        const simJson = await simResp.json()
+        const riskJson = await riskResp.json()
+
+        if (!simResp.ok) {
+          throw new Error(simJson?.error || 'simulation_failed')
+        }
+        if (!riskResp.ok) {
+          throw new Error(riskJson?.error || 'lookthrough_failed')
+        }
+
+        if (!cancelled) {
+          setSimulation(simJson.data as SimulationData)
+          setLookthrough(riskJson.data as LookthroughData)
+        }
+      } catch {
+        if (!cancelled) {
+          setSimulation(null)
+          setLookthrough(null)
+          setAnalysisError(t.labels.analysisError)
+        }
+      } finally {
+        if (!cancelled) {
+          setAnalysisLoading(false)
+        }
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [topPersona, t.labels.analysisError])
 
   return (
     <section className="mb-8 rounded-3xl border border-[#d6e0ea] bg-white/90 p-6 shadow-[0_8px_28px_rgba(15,39,71,0.10)] sm:p-8">
@@ -586,6 +884,145 @@ export default function InvestmentPersonality() {
                       ))}
                     </div>
                   </div>
+                  {isTop ? (
+                    <div className="mt-3 rounded-xl border border-[#cfe0f5] bg-white p-3 text-xs text-[#2f4e77]">
+                      <p className="font-semibold text-[#163a66]">{t.labels.analysisTitle}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        <span className="rounded-full border border-[#b7d2f2] bg-[#edf5ff] px-2 py-0.5 text-[11px] font-semibold text-[#234f84]">
+                          {t.labels.analysisTitle} · {t.labels.freeBadge}
+                        </span>
+                        <span className="rounded-full border border-[#b7d2f2] bg-[#edf5ff] px-2 py-0.5 text-[11px] font-semibold text-[#234f84]">
+                          {t.labels.lookthroughTitle} Top 10 · {t.labels.freeBadge}
+                        </span>
+                        <span className="rounded-full border border-[#e6c9a3] bg-[#fff2e6] px-2 py-0.5 text-[11px] font-semibold text-[#8a4b1f]">
+                          {t.labels.gatedFeaturesTitle} ·{' '}
+                          {featureAccess?.plan === 'member' ? t.labels.freeBadge : t.labels.memberBadge}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-[#5a7392]">
+                        {t.labels.sampleAmount}: {usdFmt.format(SAMPLE_AMOUNT_USD)}
+                      </p>
+
+                      {analysisLoading ? (
+                        <p className="mt-2 text-[#4c678b]">{t.labels.analysisLoading}</p>
+                      ) : analysisError ? (
+                        <p className="mt-2 rounded-lg border border-[#f2c7c7] bg-[#fff1f1] px-2 py-1 text-[#9d3030]">
+                          {analysisError}
+                        </p>
+                      ) : simulation && lookthrough ? (
+                        <>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            <p className="rounded-lg bg-[#f3f8ff] px-2 py-1">
+                              <span className="block text-[#5a7392]">{t.labels.annualReturn}</span>
+                              <span className="font-semibold text-[#163a66]">
+                                {pctFmt.format(simulation.weighted_baseline_annual_return_pct)}%
+                              </span>
+                            </p>
+                            <p className="rounded-lg bg-[#f3f8ff] px-2 py-1">
+                              <span className="block text-[#5a7392]">{t.labels.estimatedYield}</span>
+                              <span className="font-semibold text-[#163a66]">
+                                {simulation.estimated_dividend.portfolio_ttm_dividend_yield_pct == null
+                                  ? 'N/A'
+                                  : `${pctFmt.format(simulation.estimated_dividend.portfolio_ttm_dividend_yield_pct)}%`}
+                              </span>
+                            </p>
+                            <p className="rounded-lg bg-[#f6fbf6] px-2 py-1">
+                              <span className="block text-[#5a7392]">{t.labels.estimatedDividendYear}</span>
+                              <span className="font-semibold text-[#1f6a3d]">
+                                {simulation.estimated_dividend.estimated_annual_dividend_amount == null
+                                  ? 'N/A'
+                                  : usdFmt.format(simulation.estimated_dividend.estimated_annual_dividend_amount)}
+                              </span>
+                            </p>
+                            <p className="rounded-lg bg-[#f6fbf6] px-2 py-1">
+                              <span className="block text-[#5a7392]">{t.labels.estimatedDividendMonth}</span>
+                              <span className="font-semibold text-[#1f6a3d]">
+                                {simulation.estimated_dividend.estimated_monthly_dividend_amount == null
+                                  ? 'N/A'
+                                  : usdFmt.format(simulation.estimated_dividend.estimated_monthly_dividend_amount)}
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                            <p className="rounded-lg bg-[#fff8e7] px-2 py-1">
+                              <span className="block text-[#82621c]">{t.labels.projectedValueBase}</span>
+                              <span className="font-semibold text-[#6b4f16]">
+                                {usdFmt.format(simulation.projection.base_end_value)}
+                              </span>
+                            </p>
+                            <p className="rounded-lg bg-[#ecf8ef] px-2 py-1">
+                              <span className="block text-[#23653c]">{t.labels.projectedValueBull}</span>
+                              <span className="font-semibold text-[#1d5532]">
+                                {usdFmt.format(simulation.projection.bull_end_value)}
+                              </span>
+                            </p>
+                            <p className="rounded-lg bg-[#fff1f1] px-2 py-1">
+                              <span className="block text-[#8b3a3a]">{t.labels.projectedValueBear}</span>
+                              <span className="font-semibold text-[#7a2e2e]">
+                                {usdFmt.format(simulation.projection.bear_end_value)}
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="mt-3 rounded-lg border border-[#d7e3f0] bg-[#f9fcff] px-3 py-2">
+                            <p className="font-semibold text-[#183c68]">{t.labels.lookthroughTitle}</p>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                              <p>
+                                <span className="block text-[#5a7392]">{t.labels.top1Exposure}</span>
+                                <span className="font-semibold">{pctFmt.format(lookthrough.risk_summary.top1_pct)}%</span>
+                              </p>
+                              <p>
+                                <span className="block text-[#5a7392]">{t.labels.top5Exposure}</span>
+                                <span className="font-semibold">{pctFmt.format(lookthrough.risk_summary.top5_pct)}%</span>
+                              </p>
+                              <p>
+                                <span className="block text-[#5a7392]">{t.labels.hhi}</span>
+                                <span className="font-semibold">{pctFmt.format(lookthrough.risk_summary.hhi)}</span>
+                              </p>
+                            </div>
+                            {lookthrough.risk_summary.alerts.length > 0 ? (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {lookthrough.risk_summary.alerts.map((code) => (
+                                  <span
+                                    key={code}
+                                    className="rounded-full border border-[#f0c2a2] bg-[#fff2e8] px-2 py-0.5 text-[11px] text-[#8a4c22]"
+                                  >
+                                    {alertText(language, code)}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+
+                            <p className="mt-2 font-semibold text-[#2a4b73]">{t.labels.topHoldings}</p>
+                            <div className="mt-1 space-y-1">
+                              {lookthrough.top_stock_exposures.slice(0, 5).map((row) => (
+                                <p key={`${row.holding_symbol || 'na'}-${row.holding_name || 'na'}`} className="text-[#456488]">
+                                  {(row.holding_symbol || row.holding_name || 'N/A')}: {pctFmt.format(row.portfolio_exposure_pct)}%
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+
+                          {[...simulation.warnings, ...lookthrough.warnings].length > 0 ? (
+                            <p className="mt-2 text-[11px] text-[#6c7f98]">
+                              {t.labels.warnings}:{' '}
+                              {[...simulation.warnings, ...lookthrough.warnings].join(' | ')}
+                            </p>
+                          ) : null}
+
+                          <div className="mt-3 rounded-lg border border-[#ecd7bf] bg-[#fff8f1] px-3 py-2">
+                            <p className="font-semibold text-[#8a4b1f]">{t.labels.gatedFeaturesTitle}</p>
+                            <ul className="mt-1 list-disc pl-4 text-[11px] text-[#8a5a33]">
+                              <li>{t.labels.gatedLookthroughFull}</li>
+                              <li>{t.labels.gatedAdvancedSimulation}</li>
+                              <li>{t.labels.gatedExport}</li>
+                            </ul>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <p className="mt-3 text-xs italic text-[#556d8b]">{details.quote}</p>
                 </article>
               )
