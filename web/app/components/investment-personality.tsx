@@ -15,6 +15,12 @@ type PersonaAllocation = {
   equities: string
 }
 
+type PersonaEtfBuckets = {
+  bonds: string[]
+  dividend: string[]
+  equities: string[]
+}
+
 const PERSONA_ALLOCATIONS: Record<Persona, PersonaAllocation> = {
   stability: {
     bonds: '50-70%',
@@ -30,6 +36,24 @@ const PERSONA_ALLOCATIONS: Record<Persona, PersonaAllocation> = {
     bonds: '0-20%',
     dividend: '0-10%',
     equities: '80-100%',
+  },
+}
+
+const PERSONA_ETF_RECOMMENDATIONS: Record<Persona, PersonaEtfBuckets> = {
+  stability: {
+    bonds: ['SGOV', 'SHY', 'IEF', 'BND', 'TIP'],
+    dividend: ['SCHD', 'VIG', 'JEPI'],
+    equities: ['VOO', 'VTI', 'VXUS'],
+  },
+  balanced: {
+    bonds: ['BND', 'AGG', 'IEF', 'BNDX'],
+    dividend: ['SCHD', 'VIG', 'DGRO'],
+    equities: ['VTI', 'VOO', 'VXUS', 'QQQM'],
+  },
+  growth: {
+    bonds: ['SGOV', 'SHY', 'IEF'],
+    dividend: ['SCHD', 'VIG'],
+    equities: ['VTI', 'VOO', 'QQQ', 'IWM', 'VXUS'],
   },
 }
 
@@ -89,6 +113,8 @@ const TEXT: Record<
       equities: string
       profileFit: string
       topMatch: string
+      recommendedEtfs: string
+      basedOnUniverse: string
     }
     alerts: {
       beginnerHighRisk: string
@@ -145,6 +171,8 @@ const TEXT: Record<
       equities: 'Equity ETFs',
       profileFit: 'Why this profile fits',
       topMatch: 'Top Match',
+      recommendedEtfs: 'Suggested ETF list',
+      basedOnUniverse: 'Based on current 52-ETF universe',
     },
     alerts: {
       beginnerHighRisk:
@@ -214,6 +242,8 @@ const TEXT: Record<
       equities: '股票 ETF',
       profileFit: '判斷依據',
       topMatch: '最符合',
+      recommendedEtfs: '建議 ETF 清單',
+      basedOnUniverse: '以下先以目前 52 檔 ETF 作為候選池',
     },
     alerts: {
       beginnerHighRisk: '新手 + 積極風險：建議先用較小部位與分批進場，避免一次滿倉承擔波動。',
@@ -282,6 +312,8 @@ const TEXT: Record<
       equities: '股票 ETF',
       profileFit: '判断依据',
       topMatch: '最符合',
+      recommendedEtfs: '建议 ETF 清单',
+      basedOnUniverse: '以下先以目前 52 只 ETF 作为候选池',
     },
     alerts: {
       beginnerHighRisk: '新手 + 积极风险：建议先用较小仓位与分批进场，避免一次满仓承受波动。',
@@ -492,6 +524,7 @@ export default function InvestmentPersonality() {
             {personaOrder.map((persona, index) => {
               const details = t.personas[persona]
               const allocation = PERSONA_ALLOCATIONS[persona]
+              const recommendation = PERSONA_ETF_RECOMMENDATIONS[persona]
               const drawdownTone = getDrawdownTone(persona)
               const isTop = index === 0
               return (
@@ -515,23 +548,43 @@ export default function InvestmentPersonality() {
                   <p className="mt-3 text-xs font-medium text-[#2f537f]">
                     {t.labels.profileFit}: {details.fit}
                   </p>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                    <p className={`rounded-lg px-2 py-1 ${drawdownTone}`}>
-                      <span className="block">{t.labels.maxDrawdown}</span>
-                      <span className="block">{details.drawdown}</span>
+                  <div className="mt-3 rounded-xl border border-[#d4e0ee] bg-[#f7fbff] p-3 text-xs text-[#2c4d79]">
+                    <p className={`inline-flex rounded-lg px-2 py-1 ${drawdownTone}`}>
+                      <span className="font-semibold">{t.labels.maxDrawdown}: </span>
+                      <span className="ml-1">{details.drawdown}</span>
                     </p>
-                    <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      <span className="block">{t.labels.bonds}</span>
-                      <span className="block">{allocation.bonds}</span>
-                    </p>
-                    <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      <span className="block">{t.labels.dividend}</span>
-                      <span className="block">{allocation.dividend}</span>
-                    </p>
-                    <p className="rounded-lg bg-[#f3f8ff] px-2 py-1 text-[#2c4d79]">
-                      <span className="block">{t.labels.equities}</span>
-                      <span className="block">{allocation.equities}</span>
-                    </p>
+                    <p className="font-semibold text-[#183c68]">{t.labels.recommendedEtfs}</p>
+                    <p className="mt-1 text-[11px] text-[#5a7392]">{t.labels.basedOnUniverse}</p>
+                    <div className="mt-2 rounded-lg border border-[#d7e3f0] bg-white px-3 py-2">
+                      {[
+                        {
+                          label: t.labels.bonds,
+                          allocation: allocation.bonds,
+                          symbols: recommendation.bonds,
+                        },
+                        {
+                          label: t.labels.dividend,
+                          allocation: allocation.dividend,
+                          symbols: recommendation.dividend,
+                        },
+                        {
+                          label: t.labels.equities,
+                          allocation: allocation.equities,
+                          symbols: recommendation.equities,
+                        },
+                      ].map((row) => (
+                        <div
+                          key={row.label}
+                          className="grid gap-1 border-b border-[#e2eaf3] py-2 last:border-b-0 last:pb-0 first:pt-0 sm:grid-cols-[140px_92px_1fr] sm:items-center"
+                        >
+                          <p className="font-semibold text-[#2a4b73]">{row.label}</p>
+                          <p className="w-fit rounded-full bg-[#eaf2ff] px-2 py-0.5 font-semibold text-[#264c80]">
+                            {row.allocation}
+                          </p>
+                          <p className="text-[#456488]">{row.symbols.join(', ')}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <p className="mt-3 text-xs italic text-[#556d8b]">{details.quote}</p>
                 </article>
