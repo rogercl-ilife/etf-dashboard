@@ -188,12 +188,34 @@ const TEXT: Record<
       analysisLoading: string
       analysisError: string
       warnings: string
+      analysisExpand: string
+      analysisCollapse: string
       freeBadge: string
       memberBadge: string
       gatedFeaturesTitle: string
       gatedLookthroughFull: string
       gatedAdvancedSimulation: string
       gatedExport: string
+      trustTitle: string
+      trustHorizon: string
+      trustHorizonValue: string
+      trustFormula: string
+      trustFormulaValue: string
+      trustSource: string
+      trustSourceValue: string
+      trustAllocation: string
+      trustCoverage: string
+      trustSummaryTitle: string
+      trustSummaryFormula: string
+      algoTitle: string
+      algoHow: string
+      algoReturn: string
+      algoScenario: string
+      algoDividend: string
+      algoSeeTrust: string
+      allocationTitle: string
+      allocationNote: string
+      allocationBucketTemplate: string
     }
     alerts: {
       beginnerHighRisk: string
@@ -269,12 +291,36 @@ const TEXT: Record<
       analysisLoading: 'Running simulation...',
       analysisError: 'Unable to load analysis right now.',
       warnings: 'Notes',
+      analysisExpand: 'Expand',
+      analysisCollapse: 'Collapse',
       freeBadge: 'Free',
       memberBadge: 'Member',
       gatedFeaturesTitle: 'Member features',
       gatedLookthroughFull: 'Full look-through list (Top 50 + ETF contribution details)',
       gatedAdvancedSimulation: 'Advanced simulation (custom assumptions and stress tests)',
       gatedExport: 'Export CSV report',
+      trustTitle: 'Simulation basis',
+      trustHorizon: 'Horizon',
+      trustHorizonValue: '5 years',
+      trustFormula: 'Formula',
+      trustFormulaValue: 'Base = weighted annual return; Bull = Base + 2%; Bear = Base - 3%',
+      trustSource: 'Return source',
+      trustSourceValue: '`etf_snapshots`: 5Y fallback to 3Y/1Y',
+      trustAllocation: 'ETF weights used',
+      trustCoverage: 'Data coverage',
+      trustSummaryTitle: 'Summary',
+      trustSummaryFormula: '5Y horizon / Base, Bull=Base+2%, Bear=Base-3%',
+      algoTitle: 'How this is calculated',
+      algoHow: 'The current persona uses bucket weights, then splits each bucket equally across listed ETFs.',
+      algoReturn:
+        'Estimated annual return = weighted annualized return from ETF snapshots (5Y fallback to 3Y/1Y).',
+      algoScenario: 'Scenario values use: base rate / bull = base +2% / bear = base -3%.',
+      algoDividend:
+        'Estimated dividend uses TTM dividends: ETF yield = (last 12m dividends / latest close), then weighted by ETF allocation.',
+      algoSeeTrust: 'ETF weights are listed above in "Simulation basis".',
+      allocationTitle: 'ETF weights used in this run',
+      allocationNote: 'These weights are auto-generated from persona buckets for quick simulation.',
+      allocationBucketTemplate: 'Bucket target',
     },
     alerts: {
       beginnerHighRisk:
@@ -363,12 +409,34 @@ const TEXT: Record<
       analysisLoading: '試算中...',
       analysisError: '目前無法載入試算結果。',
       warnings: '提示',
+      analysisExpand: '展開',
+      analysisCollapse: '收合',
       freeBadge: '免費',
       memberBadge: '會員',
       gatedFeaturesTitle: '會員功能',
       gatedLookthroughFull: '完整穿透清單（Top 50 + ETF 貢獻拆解）',
       gatedAdvancedSimulation: '進階試算（自訂假設與壓力測試）',
       gatedExport: 'CSV 匯出報告',
+      trustTitle: '試算依據',
+      trustHorizon: '期間',
+      trustHorizonValue: '5 年',
+      trustFormula: '公式',
+      trustFormulaValue: 'Base = 加權年化報酬；Bull = Base + 2%；Bear = Base - 3%',
+      trustSource: '報酬來源',
+      trustSourceValue: '`etf_snapshots`：5Y 缺值回退至 3Y/1Y',
+      trustAllocation: '本次ETF權重',
+      trustCoverage: '資料覆蓋率',
+      trustSummaryTitle: '摘要',
+      trustSummaryFormula: '5年期間 / Base、Bull=Base+2%、Bear=Base-3%',
+      algoTitle: '算法說明',
+      algoHow: '先套用人格的三類資產權重，再把每類權重平均分配到該類 ETF 清單。',
+      algoReturn: '估計年化報酬 = ETF 快照報酬加權年化（優先 5Y，缺值改 3Y/1Y）。',
+      algoScenario: '情境期末值使用：基準利率 / 樂觀 = 基準 +2% / 保守 = 基準 -3%。',
+      algoDividend: '估計股息使用近 12 個月（TTM）：ETF殖利率 = 過去12月股息 / 最新收盤價，再依ETF權重加權。',
+      algoSeeTrust: 'ETF 權重請見上方「試算依據」。',
+      allocationTitle: '本次試算使用的 ETF 權重',
+      allocationNote: '此權重為人格快速試算的自動分配結果。',
+      allocationBucketTemplate: '類別目標',
     },
     alerts: {
       beginnerHighRisk: '新手 + 積極風險：建議先用較小部位與分批進場，避免一次滿倉承擔波動。',
@@ -456,12 +524,34 @@ const TEXT: Record<
       analysisLoading: '试算中...',
       analysisError: '当前无法加载试算结果。',
       warnings: '提示',
+      analysisExpand: '展开',
+      analysisCollapse: '收起',
       freeBadge: '免费',
       memberBadge: '会员',
       gatedFeaturesTitle: '会员功能',
       gatedLookthroughFull: '完整穿透清单（Top 50 + ETF 贡献拆解）',
       gatedAdvancedSimulation: '进阶试算（自定义假设与压力测试）',
       gatedExport: 'CSV 导出报告',
+      trustTitle: '试算依据',
+      trustHorizon: '期间',
+      trustHorizonValue: '5 年',
+      trustFormula: '公式',
+      trustFormulaValue: 'Base = 加权年化回报；Bull = Base + 2%；Bear = Base - 3%',
+      trustSource: '回报来源',
+      trustSourceValue: '`etf_snapshots`：5Y 缺值回退至 3Y/1Y',
+      trustAllocation: '本次ETF权重',
+      trustCoverage: '数据覆盖率',
+      trustSummaryTitle: '摘要',
+      trustSummaryFormula: '5年期间 / Base、Bull=Base+2%、Bear=Base-3%',
+      algoTitle: '算法说明',
+      algoHow: '先套用人格的三类资产权重，再把每类权重平均分配到该类 ETF 清单。',
+      algoReturn: '估计年化回报 = ETF 快照回报加权年化（优先 5Y，缺值改 3Y/1Y）。',
+      algoScenario: '情景期末值使用：基准利率 / 乐观 = 基准 +2% / 保守 = 基准 -3%。',
+      algoDividend: '估计股息使用近 12 个月（TTM）：ETF收益率 = 过去12月股息 / 最新收盘价，再按ETF权重加权。',
+      algoSeeTrust: 'ETF 权重请见上方“试算依据”。',
+      allocationTitle: '本次试算使用的 ETF 权重',
+      allocationNote: '此权重为人格快速试算的自动分配结果。',
+      allocationBucketTemplate: '类别目标',
     },
     alerts: {
       beginnerHighRisk: '新手 + 积极风险：建议先用较小仓位与分批进场，避免一次满仓承受波动。',
@@ -610,6 +700,7 @@ export default function InvestmentPersonality() {
   const [simulation, setSimulation] = useState<SimulationData | null>(null)
   const [lookthrough, setLookthrough] = useState<LookthroughData | null>(null)
   const [featureAccess, setFeatureAccess] = useState<FeatureAccessData | null>(null)
+  const [analysisOpen, setAnalysisOpen] = useState(true)
 
   const topPersona = useMemo(
     () => inferPersona(timeHorizon, riskTolerance, incomeNeed, experienceLevel),
@@ -617,6 +708,7 @@ export default function InvestmentPersonality() {
   )
   const personaOrder = useMemo(() => getPersonaOrder(topPersona), [topPersona])
   const showBeginnerHighRiskAlert = experienceLevel === 'beginner' && riskTolerance === 'aggressive'
+  const analysisAllocations = useMemo(() => buildApiAllocations(topPersona), [topPersona])
   const pctFmt = useMemo(
     () =>
       new Intl.NumberFormat(language === 'en' ? 'en-US' : language, {
@@ -657,8 +749,26 @@ export default function InvestmentPersonality() {
   }, [])
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('etf.quick_sim.open')
+      if (raw === '0') setAnalysisOpen(false)
+      if (raw === '1') setAnalysisOpen(true)
+    } catch {
+      // Ignore storage read failures.
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('etf.quick_sim.open', analysisOpen ? '1' : '0')
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [analysisOpen])
+
+  useEffect(() => {
     let cancelled = false
-    const allocations = buildApiAllocations(topPersona)
+    const allocations = analysisAllocations
 
     async function run() {
       setAnalysisLoading(true)
@@ -717,7 +827,7 @@ export default function InvestmentPersonality() {
     return () => {
       cancelled = true
     }
-  }, [topPersona, t.labels.analysisError])
+  }, [analysisAllocations, topPersona, t.labels.analysisError])
 
   return (
     <section className="mb-8 rounded-3xl border border-[#d6e0ea] bg-white/90 p-6 shadow-[0_8px_28px_rgba(15,39,71,0.10)] sm:p-8">
@@ -886,31 +996,54 @@ export default function InvestmentPersonality() {
                   </div>
                   {isTop ? (
                     <div className="mt-3 rounded-xl border border-[#cfe0f5] bg-white p-3 text-xs text-[#2f4e77]">
-                      <p className="font-semibold text-[#163a66]">{t.labels.analysisTitle}</p>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        <span className="rounded-full border border-[#b7d2f2] bg-[#edf5ff] px-2 py-0.5 text-[11px] font-semibold text-[#234f84]">
-                          {t.labels.analysisTitle} · {t.labels.freeBadge}
+                      <button
+                        type="button"
+                        onClick={() => setAnalysisOpen((prev) => !prev)}
+                        aria-expanded={analysisOpen}
+                        aria-controls="quick-sim-panel"
+                        className="flex w-full items-center justify-between gap-3 text-left"
+                      >
+                        <p className="font-semibold text-[#163a66]">{t.labels.analysisTitle}</p>
+                        <span className="rounded-full border border-[#c4d7ee] bg-[#f3f8ff] px-2 py-0.5 text-[11px] font-semibold text-[#355b88]">
+                          {analysisOpen ? t.labels.analysisCollapse : t.labels.analysisExpand}
                         </span>
-                        <span className="rounded-full border border-[#b7d2f2] bg-[#edf5ff] px-2 py-0.5 text-[11px] font-semibold text-[#234f84]">
-                          {t.labels.lookthroughTitle} Top 10 · {t.labels.freeBadge}
-                        </span>
-                        <span className="rounded-full border border-[#e6c9a3] bg-[#fff2e6] px-2 py-0.5 text-[11px] font-semibold text-[#8a4b1f]">
-                          {t.labels.gatedFeaturesTitle} ·{' '}
-                          {featureAccess?.plan === 'member' ? t.labels.freeBadge : t.labels.memberBadge}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[11px] text-[#5a7392]">
-                        {t.labels.sampleAmount}: {usdFmt.format(SAMPLE_AMOUNT_USD)}
-                      </p>
+                      </button>
 
-                      {analysisLoading ? (
-                        <p className="mt-2 text-[#4c678b]">{t.labels.analysisLoading}</p>
-                      ) : analysisError ? (
-                        <p className="mt-2 rounded-lg border border-[#f2c7c7] bg-[#fff1f1] px-2 py-1 text-[#9d3030]">
-                          {analysisError}
-                        </p>
-                      ) : simulation && lookthrough ? (
-                        <>
+                      {analysisOpen ? (
+                        <div id="quick-sim-panel" className="mt-1">
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="rounded-full border border-[#b7d2f2] bg-[#edf5ff] px-2 py-0.5 text-[11px] font-semibold text-[#234f84]">
+                              {t.labels.analysisTitle} · {t.labels.freeBadge}
+                            </span>
+                            <span className="rounded-full border border-[#b7d2f2] bg-[#edf5ff] px-2 py-0.5 text-[11px] font-semibold text-[#234f84]">
+                              {t.labels.lookthroughTitle} Top 10 · {t.labels.freeBadge}
+                            </span>
+                            <span className="rounded-full border border-[#e6c9a3] bg-[#fff2e6] px-2 py-0.5 text-[11px] font-semibold text-[#8a4b1f]">
+                              {t.labels.gatedFeaturesTitle} ·{' '}
+                              {featureAccess?.plan === 'member' ? t.labels.freeBadge : t.labels.memberBadge}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-[#5a7392]">
+                            {t.labels.sampleAmount}: {usdFmt.format(SAMPLE_AMOUNT_USD)}
+                          </p>
+                          <div className="mt-2 rounded-lg border border-[#d7e3f0] bg-[#f8fbff] px-3 py-2">
+                            <p className="font-semibold text-[#1c3e68]">{t.labels.trustSummaryTitle}</p>
+                            <p className="mt-1 text-[11px] text-[#4a678c]">
+                              {t.labels.trustSummaryFormula} | {t.labels.trustCoverage}: return{' '}
+                              {simulation?.warnings.some((x) => x.startsWith('return_coverage_partial')) ? 'partial' : 'ok'} / dividend{' '}
+                              {simulation?.warnings.some((x) => x.startsWith('dividend_coverage_')) ? 'partial' : 'ok'} / holdings{' '}
+                              {lookthrough?.warnings.some((x) => x.startsWith('holdings_coverage_partial')) ? 'partial' : 'ok'}
+                            </p>
+                          </div>
+
+                          {analysisLoading ? (
+                            <p className="mt-2 text-[#4c678b]">{t.labels.analysisLoading}</p>
+                          ) : analysisError ? (
+                            <p className="mt-2 rounded-lg border border-[#f2c7c7] bg-[#fff1f1] px-2 py-1 text-[#9d3030]">
+                              {analysisError}
+                            </p>
+                          ) : simulation && lookthrough ? (
+                            <>
                           <div className="mt-2 grid gap-2 sm:grid-cols-2">
                             <p className="rounded-lg bg-[#f3f8ff] px-2 py-1">
                               <span className="block text-[#5a7392]">{t.labels.annualReturn}</span>
@@ -1011,6 +1144,56 @@ export default function InvestmentPersonality() {
                             </p>
                           ) : null}
 
+                          <details className="mt-3 rounded-lg border border-[#d7e3f0] bg-[#f8fbff] px-3 py-2">
+                            <summary className="cursor-pointer text-sm font-semibold text-[#1c3e68]">
+                              {t.labels.algoTitle}
+                            </summary>
+                            <div className="mt-2 space-y-1 text-[11px] text-[#4a678c]">
+                              <p>{t.labels.algoHow}</p>
+                              <p>
+                                <span className="font-semibold text-[#244a79]">{t.labels.trustHorizon}: </span>
+                                {t.labels.trustHorizonValue}
+                              </p>
+                              <p>
+                                <span className="font-semibold text-[#244a79]">{t.labels.trustFormula}: </span>
+                                {t.labels.trustFormulaValue}
+                              </p>
+                              <p>{t.labels.algoReturn}</p>
+                              <p>{t.labels.algoScenario}</p>
+                              <p>{t.labels.algoDividend}</p>
+                              <p>
+                                <span className="font-semibold text-[#244a79]">{t.labels.trustSource}: </span>
+                                {t.labels.trustSourceValue}
+                              </p>
+                              <p>
+                                <span className="font-semibold text-[#244a79]">{t.labels.trustAllocation}: </span>
+                                {t.labels.bonds} {PERSONA_BUCKET_WEIGHTS[topPersona].bonds}% / {t.labels.dividend}{' '}
+                                {PERSONA_BUCKET_WEIGHTS[topPersona].dividend}% / {t.labels.equities}{' '}
+                                {PERSONA_BUCKET_WEIGHTS[topPersona].equities}%
+                              </p>
+                            </div>
+                            <div className="mt-2 rounded-lg border border-[#d7e3f0] bg-white px-2 py-2">
+                              <p className="text-[11px] font-semibold text-[#244a79]">{t.labels.allocationTitle}</p>
+                              <p className="text-[11px] text-[#5c7697]">{t.labels.allocationNote}</p>
+                              <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                                {analysisAllocations
+                                  .slice()
+                                  .sort((a, b) => b.weight_pct - a.weight_pct)
+                                  .map((row) => (
+                                    <p key={row.symbol} className="text-[11px] text-[#4a678c]">
+                                      {row.symbol}: {pctFmt.format(row.weight_pct)}%
+                                    </p>
+                                  ))}
+                              </div>
+                              <p className="mt-2 text-[11px] text-[#5c7697]">
+                                <span className="font-semibold text-[#244a79]">{t.labels.trustCoverage}: </span>
+                                return {simulation?.warnings.some((x) => x.startsWith('return_coverage_partial')) ? 'partial' : 'ok'} | dividend{' '}
+                                {simulation?.warnings.some((x) => x.startsWith('dividend_coverage_')) ? 'partial' : 'ok'} | holdings{' '}
+                                {lookthrough?.warnings.some((x) => x.startsWith('holdings_coverage_partial')) ? 'partial' : 'ok'}
+                              </p>
+                            </div>
+                          </details>
+
                           <div className="mt-3 rounded-lg border border-[#ecd7bf] bg-[#fff8f1] px-3 py-2">
                             <p className="font-semibold text-[#8a4b1f]">{t.labels.gatedFeaturesTitle}</p>
                             <ul className="mt-1 list-disc pl-4 text-[11px] text-[#8a5a33]">
@@ -1019,7 +1202,9 @@ export default function InvestmentPersonality() {
                               <li>{t.labels.gatedExport}</li>
                             </ul>
                           </div>
-                        </>
+                            </>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
