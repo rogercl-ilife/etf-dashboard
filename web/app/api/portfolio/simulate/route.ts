@@ -10,6 +10,7 @@ type SimulateRequest = {
   amount: number
   horizon_years?: number
   persona?: 'stability' | 'balanced' | 'growth'
+  return_period_mode?: 'auto' | '1Y' | '3Y' | '5Y' | '10Y'
   allocations: AllocationInput[]
 }
 
@@ -19,6 +20,12 @@ type SnapshotRow = {
   return_1y_pct: number | null
   return_3y_pct: number | null
   return_5y_pct: number | null
+  return_10y_pct: number | null
+}
+
+type EtfMetaRow = {
+  symbol: string
+  inception_date: string | null
 }
 
 type DividendRow = {
@@ -30,6 +37,9 @@ type DividendRow = {
 const WEIGHT_SUM_TOLERANCE = 0.01
 const MIN_RETURN_COVERAGE_PCT = 80
 const MIN_DIVIDEND_COVERAGE_PCT = 70
+const PERIOD_PRIORITY: Array<'10Y' | '5Y' | '3Y' | '1Y'> = ['10Y', '5Y', '3Y', '1Y']
+
+type ReturnPeriod = '1Y' | '3Y' | '5Y' | '10Y'
 
 function toFiniteNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -48,23 +58,92 @@ function toMoneyRound(value: number) {
   return Number(value.toFixed(2))
 }
 
-function annualizeReturnFromSnapshot(row: SnapshotRow): number | null {
-  const r5 = toFiniteNumber(row.return_5y_pct)
-  if (r5 != null) {
-    const growth = 1 + r5 / 100
-    if (growth > 0) return (Math.pow(growth, 1 / 5) - 1) * 100
+function fullYearsBetween(startDate: string, endDate: Date) {
+  const start = new Date(startDate)
+  if (Number.isNaN(start.getTime())) return null
+  let years = endDate.getUTCFullYear() - start.getUTCFullYear()
+  const monthDiff = endDate.getUTCMonth() - start.getUTCMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && endDate.getUTCDate() < start.getUTCDate())) {
+    years -= 1
+  }
+  return years
+}
+
+function sanitizeSnapshotByInception(snapshot: SnapshotRow, inceptionDate: string | null): SnapshotRow {
+  if (!inceptionDate) return snapshot
+  const years = fullYearsBetween(inceptionDate, new Date())
+  if (years == null) return snapshot
+
+  return {
+    ...snapshot,
+    return_1y_pct: years >= 1 ? snapshot.return_1y_pct : null,
+    return_3y_pct: years >= 3 ? snapshot.return_3y_pct : null,
+    return_5y_pct: years >= 5 ? snapshot.return_5y_pct : null,
+    return_10y_pct: years >= 10 ? snapshot.return_10y_pct : null,
+  }
+}
+
+function getPeriodReturn(row: SnapshotRow, period: ReturnPeriod): number | null {
+  if (period === '1Y') return toFiniteNumber(row.return_1y_pct)
+  if (period === '3Y') return toFiniteNumber(row.return_3y_pct)
+  if (period === '5Y') return toFiniteNumber(row.return_5y_pct)
+  return toFiniteNumber(row.return_10y_pct)
+}
+
+function annualizeFromPeriodReturn(periodReturnPct: number, period: ReturnPeriod): number | null {
+  if (period === '1Y') {
+    return periodReturnPct > -100 ? periodReturnPct : null
+  }
+  const years = period === '3Y' ? 3 : period === '5Y' ? 5 : 10
+  const growth = 1 + periodReturnPct / 100
+  if (growth <= 0) return null
+  return (Math.pow(growth, 1 / years) - 1) * 100
+}
+
+function availablePeriods(row: SnapshotRow): ReturnPeriod[] {
+  const periods: ReturnPeriod[] = []
+  for (const period of PERIOD_PRIORITY) {
+    const value = getPeriodReturn(row, period)
+    if (value != null) periods.push(period)
+  }
+  return periods
+}
+
+function chooseEffectivePeriod(
+  requestedMode: SimulateRequest['return_period_mode'],
+  snapshotsBySymbol: Map<string, SnapshotRow>,
+  symbols: string[],
+): { effectivePeriod: ReturnPeriod | null; requestedPeriod: ReturnPeriod | null } {
+  const requestedPeriod: ReturnPeriod | null =
+    requestedMode && requestedMode !== 'auto' ? (requestedMode as ReturnPeriod) : null
+
+  const isCommonPeriod = (period: ReturnPeriod) => {
+    for (const symbol of symbols) {
+      const row = snapshotsBySymbol.get(symbol)
+      if (!row) return false
+      if (getPeriodReturn(row, period) == null) return false
+    }
+    return true
   }
 
-  const r3 = toFiniteNumber(row.return_3y_pct)
-  if (r3 != null) {
-    const growth = 1 + r3 / 100
-    if (growth > 0) return (Math.pow(growth, 1 / 3) - 1) * 100
+  if (requestedPeriod) {
+    const requestedIndex = PERIOD_PRIORITY.indexOf(requestedPeriod)
+    for (let i = requestedIndex; i < PERIOD_PRIORITY.length; i += 1) {
+      const period = PERIOD_PRIORITY[i]
+      if (isCommonPeriod(period)) {
+        return { effectivePeriod: period, requestedPeriod }
+      }
+    }
+    return { effectivePeriod: null, requestedPeriod }
   }
 
-  const r1 = toFiniteNumber(row.return_1y_pct)
-  if (r1 != null && r1 > -100) return r1
+  for (const period of PERIOD_PRIORITY) {
+    if (isCommonPeriod(period)) {
+      return { effectivePeriod: period, requestedPeriod: null }
+    }
+  }
 
-  return null
+  return { effectivePeriod: null, requestedPeriod: null }
 }
 
 function validateAndNormalizeInput(payload: unknown): { data: SimulateRequest } | { error: string } {
@@ -79,7 +158,7 @@ function validateAndNormalizeInput(payload: unknown): { data: SimulateRequest } 
   }
 
   const horizonRaw = toFiniteNumber(body.horizon_years)
-  const horizonYears = horizonRaw == null ? 5 : Math.trunc(horizonRaw)
+  const horizonYears = horizonRaw == null ? 10 : Math.trunc(horizonRaw)
   if (horizonYears < 1 || horizonYears > 40) {
     return { error: 'horizon_years must be between 1 and 40' }
   }
@@ -119,12 +198,22 @@ function validateAndNormalizeInput(payload: unknown): { data: SimulateRequest } 
     personaRaw === 'stability' || personaRaw === 'balanced' || personaRaw === 'growth'
       ? (personaRaw as SimulateRequest['persona'])
       : undefined
+  const returnPeriodModeRaw = typeof body.return_period_mode === 'string' ? body.return_period_mode.trim() : 'auto'
+  const returnPeriodMode =
+    returnPeriodModeRaw === 'auto' ||
+    returnPeriodModeRaw === '1Y' ||
+    returnPeriodModeRaw === '3Y' ||
+    returnPeriodModeRaw === '5Y' ||
+    returnPeriodModeRaw === '10Y'
+      ? (returnPeriodModeRaw as SimulateRequest['return_period_mode'])
+      : 'auto'
 
   return {
     data: {
       amount,
       horizon_years: horizonYears,
       persona,
+      return_period_mode: returnPeriodMode,
       allocations: deduped,
     },
   }
@@ -147,11 +236,13 @@ export async function POST(request: Request) {
   const symbols = input.allocations.map((row) => row.symbol)
   const warnings: string[] = []
 
-  const etfResp = await supabase.from('etfs').select('symbol').in('symbol', symbols)
+  const etfResp = await supabase.from('etfs').select('symbol,inception_date').in('symbol', symbols)
   if (etfResp.error) {
     return NextResponse.json({ error: etfResp.error.message }, { status: 500 })
   }
-  const found = new Set((etfResp.data || []).map((row) => row.symbol))
+  const etfRows = (etfResp.data || []) as EtfMetaRow[]
+  const found = new Set(etfRows.map((row) => row.symbol))
+  const inceptionBySymbol = new Map(etfRows.map((row) => [row.symbol, row.inception_date]))
   const missingSymbols = symbols.filter((symbol) => !found.has(symbol))
   if (missingSymbols.length > 0) {
     return NextResponse.json(
@@ -162,7 +253,7 @@ export async function POST(request: Request) {
 
   const snapshotResp = await supabase
     .from('etf_snapshots')
-    .select('symbol,latest_close,return_1y_pct,return_3y_pct,return_5y_pct')
+    .select('symbol,latest_close,return_1y_pct,return_3y_pct,return_5y_pct,return_10y_pct')
     .in('symbol', symbols)
 
   if (snapshotResp.error) {
@@ -171,15 +262,45 @@ export async function POST(request: Request) {
 
   const snapshots = (snapshotResp.data || []) as SnapshotRow[]
   const snapshotMap = new Map<string, SnapshotRow>()
-  for (const row of snapshots) snapshotMap.set(row.symbol, row)
+  for (const row of snapshots) {
+    const inceptionDate = inceptionBySymbol.get(row.symbol) ?? null
+    snapshotMap.set(row.symbol, sanitizeSnapshotByInception(row, inceptionDate))
+  }
+
+  const periodPick = chooseEffectivePeriod(input.return_period_mode, snapshotMap, symbols)
+  if (!periodPick || !periodPick.effectivePeriod) {
+    return NextResponse.json({ error: 'No common return period for selected ETFs' }, { status: 422 })
+  }
+  const effectivePeriod = periodPick.effectivePeriod
+
+  const perSymbolPeriods = input.allocations.map((allocation) => {
+    const snapshot = snapshotMap.get(allocation.symbol)
+    return {
+      symbol: allocation.symbol,
+      available_periods: snapshot ? availablePeriods(snapshot) : [],
+    }
+  })
+
+  const periodAvailabilityCounts = {
+    '1Y': 0,
+    '3Y': 0,
+    '5Y': 0,
+    '10Y': 0,
+  }
+  for (const row of perSymbolPeriods) {
+    for (const period of row.available_periods) {
+      periodAvailabilityCounts[period] += 1
+    }
+  }
 
   let weightedAnnualReturnSum = 0
   let returnCoverageWeight = 0
-
   for (const allocation of input.allocations) {
     const snapshot = snapshotMap.get(allocation.symbol)
     if (!snapshot) continue
-    const annualReturnPct = annualizeReturnFromSnapshot(snapshot)
+    const periodReturnPct = getPeriodReturn(snapshot, effectivePeriod)
+    if (periodReturnPct == null) continue
+    const annualReturnPct = annualizeFromPeriodReturn(periodReturnPct, effectivePeriod)
     if (annualReturnPct == null) continue
 
     weightedAnnualReturnSum += (allocation.weight_pct * annualReturnPct) / 100
@@ -198,6 +319,9 @@ export async function POST(request: Request) {
   if (returnCoveragePct < 100) {
     warnings.push(`return_coverage_partial:${returnCoveragePct.toFixed(2)}%`)
   }
+  if (periodPick.requestedPeriod && periodPick.requestedPeriod !== effectivePeriod) {
+    warnings.push(`return_period_downgraded:${periodPick.requestedPeriod}->${effectivePeriod}`)
+  }
 
   const weightedBaselineAnnualReturnPct =
     returnCoverageWeight > 0 ? weightedAnnualReturnSum / (returnCoverageWeight / 100) : null
@@ -206,7 +330,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Insufficient snapshot return data' }, { status: 422 })
   }
 
-  const horizonYears = input.horizon_years || 5
+  const horizonYears = input.horizon_years || 10
   const baseRate = weightedBaselineAnnualReturnPct / 100
   const bullRate = (weightedBaselineAnnualReturnPct + 2.0) / 100
   const bearRate = Math.max((weightedBaselineAnnualReturnPct - 3.0) / 100, -0.95)
@@ -282,6 +406,12 @@ export async function POST(request: Request) {
       },
       assumptions: {
         return_coverage_pct: returnCoveragePct,
+        return_period_mode: input.return_period_mode || 'auto',
+        return_period_used: effectivePeriod,
+        return_period_requested: periodPick.requestedPeriod,
+        return_period_availability_counts: periodAvailabilityCounts,
+        return_period_symbol_total: input.allocations.length,
+        per_symbol_return_periods: perSymbolPeriods,
         dividend_coverage_pct: dividendCoveragePct,
         bull_alpha_pct: 2.0,
         bear_alpha_pct: -3.0,
@@ -291,4 +421,3 @@ export async function POST(request: Request) {
     },
   })
 }
-

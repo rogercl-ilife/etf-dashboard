@@ -13,7 +13,7 @@ import {
 import { useLanguage } from '@/app/components/language-context'
 import { localizeCategory } from '@/app/lib/category-labels'
 
-type RangeKey = '1M' | '3M' | '1Y' | '3Y' | '5Y'
+type RangeKey = '1M' | '3M' | '1Y' | '3Y' | '5Y' | '10Y'
 
 type EtfDetail = {
   symbol: string
@@ -47,6 +47,7 @@ type EtfDetail = {
       '1Y': number | null
       '3Y': number | null
       '5Y': number | null
+      '10Y': number | null
     }
   }
 }
@@ -56,7 +57,7 @@ type ChartPoint = {
   close: number
 }
 
-const RANGE_OPTIONS: RangeKey[] = ['1M', '3M', '1Y', '3Y', '5Y']
+const RANGE_OPTIONS: RangeKey[] = ['1M', '3M', '1Y', '3Y', '5Y', '10Y']
 
 const LOCALE_MAP = {
   en: 'en-US',
@@ -81,6 +82,7 @@ const TEXT = {
     return1y: '1Y Return',
     return3y: '3Y Return',
     return5y: '5Y Return',
+    return10y: '10Y Return',
     chartTitle: (symbol: string) => `${symbol} Price Trend`,
     loadingChart: 'Loading chart...',
     noChartData: 'No chart data in this range.',
@@ -122,6 +124,7 @@ const TEXT = {
     return1y: '1 年報酬',
     return3y: '3 年報酬',
     return5y: '5 年報酬',
+    return10y: '10 年報酬',
     chartTitle: (symbol: string) => `${symbol} 價格走勢`,
     loadingChart: '載入圖表中...',
     noChartData: '此區間沒有圖表資料。',
@@ -163,6 +166,7 @@ const TEXT = {
     return1y: '1 年回报',
     return3y: '3 年回报',
     return5y: '5 年回报',
+    return10y: '10 年回报',
     chartTitle: (symbol: string) => `${symbol} 价格走势`,
     loadingChart: '图表加载中...',
     noChartData: '该区间没有图表数据。',
@@ -382,7 +386,7 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">{t.return1y}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['1Y'])}</p>
@@ -394,6 +398,10 @@ export default function EtfDetailClient({ symbol }: { symbol: string }) {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs text-slate-500">{t.return5y}</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['5Y'])}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">{t.return10y}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{formatPct(kpis?.period_returns_pct?.['10Y'])}</p>
           </div>
         </div>
       </article>

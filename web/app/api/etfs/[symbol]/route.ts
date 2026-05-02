@@ -5,6 +5,42 @@ type Params = {
   params: Promise<{ symbol: string }>
 }
 
+type SnapshotRow = {
+  latest_close: number | null
+  change: number | null
+  change_pct: number | null
+  return_1y_pct: number | null
+  return_3y_pct: number | null
+  return_5y_pct: number | null
+  return_10y_pct: number | null
+  updated_at: string | null
+}
+
+function fullYearsBetween(startDate: string, endDate: Date) {
+  const start = new Date(startDate)
+  if (Number.isNaN(start.getTime())) return null
+  let years = endDate.getUTCFullYear() - start.getUTCFullYear()
+  const monthDiff = endDate.getUTCMonth() - start.getUTCMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && endDate.getUTCDate() < start.getUTCDate())) {
+    years -= 1
+  }
+  return years
+}
+
+function sanitizeSnapshotByInception(snapshot: SnapshotRow | null, inceptionDate: string | null): SnapshotRow | null {
+  if (!snapshot || !inceptionDate) return snapshot
+  const years = fullYearsBetween(inceptionDate, new Date())
+  if (years == null) return snapshot
+
+  return {
+    ...snapshot,
+    return_1y_pct: years >= 1 ? snapshot.return_1y_pct : null,
+    return_3y_pct: years >= 3 ? snapshot.return_3y_pct : null,
+    return_5y_pct: years >= 5 ? snapshot.return_5y_pct : null,
+    return_10y_pct: years >= 10 ? snapshot.return_10y_pct : null,
+  }
+}
+
 function readText(row: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     const value = row[key]
@@ -62,23 +98,15 @@ export async function GET(_: Request, { params }: Params) {
     return NextResponse.json({ error: dividendsResp.error.message }, { status: 500 })
   }
 
-  let snapshot: {
-    latest_close: number | null
-    change: number | null
-    change_pct: number | null
-    return_1y_pct: number | null
-    return_3y_pct: number | null
-    return_5y_pct: number | null
-    updated_at: string | null
-  } | null = null
+  let snapshot: SnapshotRow | null = null
 
   const snapshotResp = await supabase
     .from('etf_snapshots')
-    .select('latest_close,change,change_pct,return_1y_pct,return_3y_pct,return_5y_pct,updated_at')
+    .select('latest_close,change,change_pct,return_1y_pct,return_3y_pct,return_5y_pct,return_10y_pct,updated_at')
     .eq('symbol', symbol)
     .maybeSingle()
 
-  if (snapshotResp.error && snapshotResp.error.message.includes('return_1y_pct')) {
+  if (snapshotResp.error && snapshotResp.error.message.includes('return_')) {
     const fallbackSnapshotResp = await supabase
       .from('etf_snapshots')
       .select('latest_close,change,change_pct,updated_at')
@@ -95,6 +123,7 @@ export async function GET(_: Request, { params }: Params) {
           return_1y_pct: null,
           return_3y_pct: null,
           return_5y_pct: null,
+          return_10y_pct: null,
         }
       : null
   } else if (snapshotResp.error) {
@@ -102,6 +131,7 @@ export async function GET(_: Request, { params }: Params) {
   } else {
     snapshot = snapshotResp.data
   }
+  snapshot = sanitizeSnapshotByInception(snapshot, etf.inception_date)
 
   const dividendsRows = dividendsResp.data || []
   const oneYearAgo = new Date()
@@ -175,6 +205,7 @@ export async function GET(_: Request, { params }: Params) {
           '1Y': snapshot?.return_1y_pct != null ? Number(snapshot.return_1y_pct) : null,
           '3Y': snapshot?.return_3y_pct != null ? Number(snapshot.return_3y_pct) : null,
           '5Y': snapshot?.return_5y_pct != null ? Number(snapshot.return_5y_pct) : null,
+          '10Y': snapshot?.return_10y_pct != null ? Number(snapshot.return_10y_pct) : null,
         },
       },
     },

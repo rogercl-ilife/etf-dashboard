@@ -15,7 +15,32 @@ type SnapshotRow = {
   return_1y_pct: number | null
   return_3y_pct: number | null
   return_5y_pct: number | null
+  return_10y_pct: number | null
   updated_at: string | null
+}
+
+function fullYearsBetween(startDate: string, endDate: Date) {
+  const start = new Date(startDate)
+  if (Number.isNaN(start.getTime())) return null
+  let years = endDate.getUTCFullYear() - start.getUTCFullYear()
+  const monthDiff = endDate.getUTCMonth() - start.getUTCMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && endDate.getUTCDate() < start.getUTCDate())) {
+    years -= 1
+  }
+  return years
+}
+
+function sanitizePeriodReturnsByInception(etf: EtfRow, snap?: SnapshotRow) {
+  const now = new Date()
+  const years = etf.inception_date ? fullYearsBetween(etf.inception_date, now) : null
+  const hasAtLeast = (n: number) => (years == null ? true : years >= n)
+
+  return {
+    '1Y': hasAtLeast(1) ? (snap?.return_1y_pct ?? null) : null,
+    '3Y': hasAtLeast(3) ? (snap?.return_3y_pct ?? null) : null,
+    '5Y': hasAtLeast(5) ? (snap?.return_5y_pct ?? null) : null,
+    '10Y': hasAtLeast(10) ? (snap?.return_10y_pct ?? null) : null,
+  }
 }
 
 export async function GET(request: Request) {
@@ -47,12 +72,12 @@ export async function GET(request: Request) {
   const symbols = etfs.map((row) => row.symbol)
   const snapshotsResp = await supabase
     .from('etf_snapshots')
-    .select('symbol,return_1y_pct,return_3y_pct,return_5y_pct,updated_at')
+    .select('symbol,return_1y_pct,return_3y_pct,return_5y_pct,return_10y_pct,updated_at')
     .in('symbol', symbols)
 
   let snapshots: SnapshotRow[] = []
   if (snapshotsResp.error) {
-    if (!snapshotsResp.error.message.includes('return_1y_pct')) {
+    if (!snapshotsResp.error.message.includes('return_')) {
       return NextResponse.json({ error: snapshotsResp.error.message }, { status: 500 })
     }
   } else {
@@ -69,11 +94,7 @@ export async function GET(request: Request) {
     return {
       ...etf,
       snapshot_updated_at: snap?.updated_at ?? null,
-      period_returns_pct: {
-        '1Y': snap?.return_1y_pct ?? null,
-        '3Y': snap?.return_3y_pct ?? null,
-        '5Y': snap?.return_5y_pct ?? null,
-      },
+      period_returns_pct: sanitizePeriodReturnsByInception(etf, snap),
     }
   })
 

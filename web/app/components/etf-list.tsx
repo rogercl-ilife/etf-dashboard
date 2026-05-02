@@ -16,12 +16,13 @@ type EtfRow = {
     '1Y': number | null
     '3Y': number | null
     '5Y': number | null
+    '10Y': number | null
   }
 }
 
 type ViewMode = 'cards' | 'table'
 type SortDirection = 'asc' | 'desc'
-type SortField = 'symbol' | 'name' | 'issuer' | 'category' | 'expense_ratio' | 'return_1y' | 'return_3y' | 'return_5y'
+type SortField = 'symbol' | 'name' | 'issuer' | 'category' | 'expense_ratio' | 'return_1y' | 'return_3y' | 'return_5y' | 'return_10y'
 type SortPreset =
   | 'symbol_asc'
   | 'symbol_desc'
@@ -31,6 +32,7 @@ type SortPreset =
   | 'return_1y_desc'
   | 'return_3y_desc'
   | 'return_5y_desc'
+  | 'return_10y_desc'
   | 'custom'
 
 const LOCALE_MAP = {
@@ -65,6 +67,7 @@ const TEXT = {
     y1: '1Y',
     y3: '3Y',
     y5: '5Y',
+    y10: '10Y',
     noData: 'N/A',
     noMatch: 'No ETF matched your keyword/filters.',
     failedFetch: 'Failed to fetch ETF list',
@@ -95,7 +98,8 @@ const TEXT = {
     y1: '1 年',
     y3: '3 年',
     y5: '5 年',
-    noData: '無資料',
+    y10: '10 年',
+    noData: '無',
     noMatch: '找不到符合關鍵字或篩選條件的 ETF。',
     failedFetch: 'ETF 清單讀取失敗',
     unknownError: '未知錯誤',
@@ -125,7 +129,8 @@ const TEXT = {
     y1: '1 年',
     y3: '3 年',
     y5: '5 年',
-    noData: '暂无数据',
+    y10: '10 年',
+    noData: '无',
     noMatch: '没有符合关键字或筛选条件的 ETF。',
     failedFetch: 'ETF 列表读取失败',
     unknownError: '未知错误',
@@ -160,7 +165,8 @@ function parseSortPreset(preset: SortPreset): { field: SortField; direction: Sor
       field === 'expense_ratio' ||
       field === 'return_1y' ||
       field === 'return_3y' ||
-      field === 'return_5y')
+      field === 'return_5y' ||
+      field === 'return_10y')
   ) {
     return { field, direction }
   }
@@ -178,6 +184,7 @@ function toSortPreset(field: SortField, direction: SortDirection): SortPreset {
     'return_1y_desc',
     'return_3y_desc',
     'return_5y_desc',
+    'return_10y_desc',
   ]
   return presets.includes(key) ? key : 'custom'
 }
@@ -219,6 +226,7 @@ export default function EtfList() {
       { value: 'return_1y_desc', label: `${t.y1} (${t.desc})` },
       { value: 'return_3y_desc', label: `${t.y3} (${t.desc})` },
       { value: 'return_5y_desc', label: `${t.y5} (${t.desc})` },
+      { value: 'return_10y_desc', label: `${t.y10} (${t.desc})` },
       { value: 'custom', label: t.customSort },
     ],
     [t],
@@ -254,10 +262,16 @@ export default function EtfList() {
     if (field === 'return_1y') return row.period_returns_pct?.['1Y'] ?? null
     if (field === 'return_3y') return row.period_returns_pct?.['3Y'] ?? null
     if (field === 'return_5y') return row.period_returns_pct?.['5Y'] ?? null
+    if (field === 'return_10y') return row.period_returns_pct?.['10Y'] ?? null
     return null
   }
 
-  const isNumberField = (field: SortField) => field === 'expense_ratio' || field === 'return_1y' || field === 'return_3y' || field === 'return_5y'
+  const isNumberField = (field: SortField) =>
+    field === 'expense_ratio' ||
+    field === 'return_1y' ||
+    field === 'return_3y' ||
+    field === 'return_5y' ||
+    field === 'return_10y'
 
   const handleColumnSort = (field: SortField) => {
     if (sortField !== field) {
@@ -375,6 +389,7 @@ export default function EtfList() {
     { key: 'return_1y', label: t.y1 },
     { key: 'return_3y', label: t.y3 },
     { key: 'return_5y', label: t.y5 },
+    { key: 'return_10y', label: t.y10 },
   ]
 
   return (
@@ -504,7 +519,7 @@ export default function EtfList() {
                     {t.er}: {etf.expense_ratio != null ? `${etf.expense_ratio}%` : t.noData}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                   <div className="rounded-lg border border-[#d9e3ee] bg-[#f3f7fc] px-2 py-1">
                     <p className="text-[10px] text-[#66809c]">{t.y1}</p>
                     <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</p>
@@ -516,6 +531,10 @@ export default function EtfList() {
                   <div className="rounded-lg border border-[#d9e3ee] bg-[#f3f7fc] px-2 py-1">
                     <p className="text-[10px] text-[#66809c]">{t.y5}</p>
                     <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</p>
+                  </div>
+                  <div className="rounded-lg border border-[#d9e3ee] bg-[#f3f7fc] px-2 py-1">
+                    <p className="text-[10px] text-[#66809c]">{t.y10}</p>
+                    <p className={`font-semibold ${pctColor(etf.period_returns_pct?.['10Y'])}`}>{formatPct(etf.period_returns_pct?.['10Y'])}</p>
                   </div>
                 </div>
               </article>
@@ -558,6 +577,7 @@ export default function EtfList() {
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['1Y'])}`}>{formatPct(etf.period_returns_pct?.['1Y'])}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['3Y'])}`}>{formatPct(etf.period_returns_pct?.['3Y'])}</td>
                   <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['5Y'])}`}>{formatPct(etf.period_returns_pct?.['5Y'])}</td>
+                  <td className={`px-4 py-3 font-medium ${pctColor(etf.period_returns_pct?.['10Y'])}`}>{formatPct(etf.period_returns_pct?.['10Y'])}</td>
                 </tr>
               ))}
             </tbody>

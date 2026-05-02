@@ -28,7 +28,7 @@
 ## Detail Page (`/etf/{symbol}`)
 - [ ] Page loads without runtime error
 - [ ] Latest price card shows "Last updated" timestamp
-- [ ] Chart range buttons include `1M / 3M / 1Y / 3Y / 5Y`
+- [ ] Chart range buttons include `1M / 3M / 1Y / 3Y / 5Y / 10Y`
 - [ ] Switching range changes chart data (not static image)
 - [ ] Dividends table renders `Ex Date` and `Amount` columns
 - [ ] Holdings section:
