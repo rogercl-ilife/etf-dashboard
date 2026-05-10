@@ -109,19 +109,19 @@ def calc_period_returns(
         clean_rows.append({"date": date, "close": close})
 
     if len(clean_rows) < 1:
-        return {"1Y": None, "3Y": None, "5Y": None}
+        return {"1Y": None, "3Y": None, "5Y": None, "10Y": None}
 
     latest = clean_rows[-1]
     latest_close = latest_price if latest_price is not None else latest["close"]
     if latest_close is None or latest_close <= 0:
-        return {"1Y": None, "3Y": None, "5Y": None}
+        return {"1Y": None, "3Y": None, "5Y": None, "10Y": None}
 
     if anchor_date is None:
         anchor_date = datetime.now(timezone.utc).date()
-    result: Dict[str, Optional[float]] = {"1Y": None, "3Y": None, "5Y": None}
+    result: Dict[str, Optional[float]] = {"1Y": None, "3Y": None, "5Y": None, "10Y": None}
 
-    for period in ("1Y", "3Y", "5Y"):
-        years = int(period[0])
+    for period in ("1Y", "3Y", "5Y", "10Y"):
+        years = int(period[:-1])
         target = datetime(anchor_date.year, anchor_date.month, anchor_date.day, tzinfo=timezone.utc)
         while True:
             try:
@@ -155,14 +155,8 @@ def build_return_rows(history_df: Any) -> List[Dict[str, Any]]:
 
 
 def get_latest_market_price(ticker: Any, fallback_close: Optional[float]) -> Optional[float]:
-    try:
-        fast_info = ticker.fast_info
-        if fast_info:
-            last_price = to_float(fast_info.get("lastPrice"))
-            if last_price is not None and last_price > 0:
-                return last_price
-    except Exception:
-        pass
+    # yfinance fast_info may intermittently emit false "possibly delisted" warnings
+    # (e.g. period=5d) for valid ETFs. Use fetched close as the stable source.
     return fallback_close
 
 
@@ -265,6 +259,7 @@ def build_snapshot(
         row["return_1y_pct"] = (period_returns or {}).get("1Y")
         row["return_3y_pct"] = (period_returns or {}).get("3Y")
         row["return_5y_pct"] = (period_returns or {}).get("5Y")
+        row["return_10y_pct"] = (period_returns or {}).get("10Y")
     return row
 
 
@@ -294,8 +289,8 @@ def run(symbols: List[str], period: str, dry_run: bool) -> int:
             ticker = yf.Ticker(symbol)
             history = ticker.history(period=period, auto_adjust=False, actions=True)
             returns_history = history
-            if period != "5y":
-                returns_history = ticker.history(period="5y", auto_adjust=False, actions=True)
+            if period != "10y":
+                returns_history = ticker.history(period="10y", auto_adjust=False, actions=True)
 
             prices = build_prices(symbol, history)
             dividends = build_dividends(symbol, history)
@@ -316,7 +311,7 @@ def run(symbols: List[str], period: str, dry_run: bool) -> int:
                     try:
                         total_snapshots += upsert_rows(client, SNAPSHOTS_TABLE, [snapshot], "symbol")
                     except Exception as exc:
-                        if "return_1y_pct" not in str(exc):
+                        if "return_" not in str(exc):
                             raise
                         fallback_snapshot = build_snapshot(
                             symbol,
@@ -353,7 +348,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=50, help="Read first N symbols from etfs table")
     parser.add_argument("--all", action="store_true", help="Use all symbols from etfs table")
     parser.add_argument("--all-50", action="store_true", help="Shortcut: use first 50 symbols from etfs")
-    parser.add_argument("--period", type=str, default="1mo", help="yfinance history period. e.g. 1mo,3mo,1y")
+    parser.add_argument("--period", type=str, default="1mo", help="yfinance history period. e.g. 1mo,3mo,1y,5y,10y")
     parser.add_argument("--dry-run", action="store_true", help="Fetch only, do not write to DB")
     args = parser.parse_args()
 

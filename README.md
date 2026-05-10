@@ -8,7 +8,7 @@ Two GitHub Actions workflows are included:
 - `.github/workflows/market-data-weekly-backfill.yml`
 
 The weekly workflow includes both:
-- 5Y market data backfill
+- 10Y market data backfill
 - ETF metadata refresh (`update_etf_metadata.py`)
 All workflows now run full symbol coverage from `etfs` (no 50-symbol cap).
 

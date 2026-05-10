@@ -30,12 +30,14 @@ create table if not exists public.etf_snapshots (
   return_1y_pct numeric,
   return_3y_pct numeric,
   return_5y_pct numeric,
+  return_10y_pct numeric,
   updated_at timestamptz not null default now()
 );
 
 alter table public.etf_snapshots add column if not exists return_1y_pct numeric;
 alter table public.etf_snapshots add column if not exists return_3y_pct numeric;
 alter table public.etf_snapshots add column if not exists return_5y_pct numeric;
+alter table public.etf_snapshots add column if not exists return_10y_pct numeric;
 
 create table if not exists public.job_logs (
   id bigint generated always as identity primary key,
