@@ -17,6 +17,25 @@ type DcaData = {
   total_invested_amount: number
   settlement_amount: number
   unrealized_pnl_amount: number
+  per_symbol: Array<{
+    symbol: string
+    period_requested: '1Y' | '3Y' | '5Y' | '10Y' | null
+    period_used: '1Y' | '3Y' | '5Y' | '10Y' | null
+    used_start_date: string | null
+    used_end_date: string | null
+    downgraded: boolean
+  }>
+}
+
+type LookthroughData = {
+  top_stock_exposures: Array<{
+    holding_symbol: string | null
+    holding_name: string | null
+    portfolio_exposure_pct: number
+  }>
+  assumptions: {
+    holdings_coverage_pct: number
+  }
 }
 
 type DcaSelection = {
@@ -39,6 +58,8 @@ const TEXT: Record<Language, Record<string, string>> = {
     usedRange: 'Backtest Range', downgraded: 'Some ETFs do not have enough history. Auto-downgraded to a shorter period.',
     noResult: 'No result yet.', needSelection: 'Select at least one ETF for DCA.', loadFailed: 'Failed to load ETF list',
     selectedList: 'Selected DCA ETFs', selectedNone: 'No ETF selected yet.',
+    periodUsed: 'Period Used',
+    topHoldings: 'Top 10 Look-through Holdings', symbol: 'Symbol', stockName: 'Name', exposure: 'Exposure', coverage: 'Coverage',
   },
   'zh-TW': {
     title: '定投試算區', subtitle: '設定每檔每月買入股數，執行定投回測。',
@@ -48,6 +69,8 @@ const TEXT: Record<Language, Record<string, string>> = {
     usedRange: '回測區間', downgraded: '部分 ETF 歷史不足，已自動降檔至較短年限。',
     noResult: '尚未試算。', needSelection: '請至少勾選一檔定投 ETF。', loadFailed: 'ETF 清單讀取失敗',
     selectedList: '已選定投清單', selectedNone: '目前尚未勾選 ETF。',
+    periodUsed: '使用期間',
+    topHoldings: '穿透後前十大持股', symbol: '代號', stockName: '名稱', exposure: '曝險比例', coverage: '資料覆蓋率',
   },
   'zh-CN': {
     title: '定投试算区', subtitle: '设置每档每月买入股数，执行定投回测。',
@@ -57,6 +80,8 @@ const TEXT: Record<Language, Record<string, string>> = {
     usedRange: '回测区间', downgraded: '部分 ETF 历史不足，已自动降档至较短年限。',
     noResult: '尚未试算。', needSelection: '请至少勾选一只定投 ETF。', loadFailed: 'ETF 列表读取失败',
     selectedList: '已选定投清单', selectedNone: '目前尚未勾选 ETF。',
+    periodUsed: '使用期间',
+    topHoldings: '穿透后前十大持股', symbol: '代码', stockName: '名称', exposure: '敞口比例', coverage: '数据覆盖率',
   },
 }
 
@@ -74,18 +99,26 @@ export default function DcaSimulator() {
   const [loadingEstimate, setLoadingEstimate] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dca, setDca] = useState<DcaData | null>(null)
+  const [lookthrough, setLookthrough] = useState<LookthroughData | null>(null)
 
   const moneyFmt = useMemo(() => new Intl.NumberFormat(LOCALE_MAP[language], { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }), [language])
+  const pctFmt = useMemo(() => new Intl.NumberFormat(LOCALE_MAP[language], { minimumFractionDigits: 2, maximumFractionDigits: 2 }), [language])
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase()
     const base = !normalized ? dcaSelection : dcaSelection.filter((row) => row.symbol.toLowerCase().includes(normalized) || (row.name || '').toLowerCase().includes(normalized))
     return base.slice(0, 80)
   }, [dcaSelection, query])
-  const selectedSummary = useMemo(
-    () => dcaSelection.filter((row) => row.enabled).map((row) => ({ symbol: row.symbol, monthlyShares: Math.max(0.0001, Number(row.monthlyShares) || 1) })),
-    [dcaSelection],
-  )
+  const selectedSummary = useMemo(() => {
+    const periodBySymbol = new Map((dca?.per_symbol || []).map((row) => [row.symbol, row]))
+    return dcaSelection
+      .filter((row) => row.enabled)
+      .map((row) => ({
+        symbol: row.symbol,
+        monthlyShares: Math.max(0.0001, Number(row.monthlyShares) || 1),
+        period: periodBySymbol.get(row.symbol),
+      }))
+  }, [dcaSelection, dca])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -128,19 +161,36 @@ export default function DcaSimulator() {
     setLoadingEstimate(true)
 
     try {
-      const res = await fetch('/api/portfolio/dca-simulate', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          dca_allocations: dcaAllocations,
-          period_mode: dcaPeriodMode,
-          custom_start_date: dcaPeriodMode === 'custom' ? dcaCustomStartDate : undefined,
-          custom_end_date: dcaPeriodMode === 'custom' ? dcaCustomEndDate : undefined,
+      const totalShares = dcaAllocations.reduce((sum, row) => sum + row.monthly_shares, 0)
+      const lookthroughAllocations = dcaAllocations.map((row) => ({
+        symbol: row.symbol,
+        weight_pct: Number(((row.monthly_shares / totalShares) * 100).toFixed(4)),
+      }))
+
+      const [dcaRes, lookRes] = await Promise.all([
+        fetch('/api/portfolio/dca-simulate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            dca_allocations: dcaAllocations,
+            period_mode: dcaPeriodMode,
+            custom_start_date: dcaPeriodMode === 'custom' ? dcaCustomStartDate : undefined,
+            custom_end_date: dcaPeriodMode === 'custom' ? dcaCustomEndDate : undefined,
+          }),
         }),
-      })
-      const json = (await res.json()) as ApiResponse<DcaData>
-      if (!res.ok || !json.data) throw new Error(json.error || 'DCA simulation failed')
-      setDca(json.data)
+        fetch('/api/portfolio/lookthrough', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ allocations: lookthroughAllocations, top_n: 10 }),
+        }),
+      ])
+
+      const dcaJson = (await dcaRes.json()) as ApiResponse<DcaData>
+      const lookJson = (await lookRes.json()) as ApiResponse<LookthroughData>
+      if (!dcaRes.ok || !dcaJson.data) throw new Error(dcaJson.error || 'DCA simulation failed')
+      if (!lookRes.ok || !lookJson.data) throw new Error(lookJson.error || 'Look-through failed')
+      setDca(dcaJson.data)
+      setLookthrough(lookJson.data)
     } catch (estimateError) {
       setError(estimateError instanceof Error ? estimateError.message : 'DCA simulation failed')
     } finally {
@@ -185,7 +235,10 @@ export default function DcaSimulator() {
               {selectedSummary.length === 0 ? <p className="text-xs text-[#7086a1]">{t.selectedNone}</p> : null}
               {selectedSummary.map((row) => (
                 <div key={`selected-${row.symbol}`} className="flex items-center justify-between text-sm text-[#163760]">
-                  <span className="font-semibold">{row.symbol}</span>
+                  <div>
+                    <span className="font-semibold">{row.symbol}</span>
+                    {row.period?.period_used ? <p className="text-xs text-[#5d7594]">{t.periodUsed}: {row.period.period_used} ({row.period.used_start_date} ~ {row.period.used_end_date})</p> : null}
+                  </div>
                   <span>{row.monthlyShares} {t.monthlyShares}</span>
                 </div>
               ))}
@@ -218,6 +271,37 @@ export default function DcaSimulator() {
             {loadingEtfs ? <p className="text-sm text-[#6b8099]">Loading...</p> : null}
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#d6e0ea] bg-white/80 p-4">
+        <p className="mb-3 text-xs font-semibold text-[#4e6888]">{t.topHoldings}</p>
+        {lookthrough ? (
+          <div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[#dde7f2] text-[#597391]">
+                    <th className="px-2 py-2">{t.symbol}</th>
+                    <th className="px-2 py-2">{t.stockName}</th>
+                    <th className="px-2 py-2 text-right">{t.exposure}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lookthrough.top_stock_exposures.map((row) => (
+                    <tr key={`${row.holding_symbol || ''}-${row.holding_name || ''}`} className="border-b border-[#eef3f8] text-[#163760]">
+                      <td className="px-2 py-2 font-semibold">{row.holding_symbol || '-'}</td>
+                      <td className="px-2 py-2">{row.holding_name || '-'}</td>
+                      <td className="px-2 py-2 text-right font-semibold">{pctFmt.format(row.portfolio_exposure_pct)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-[#6d819a]">{t.coverage}: {pctFmt.format(lookthrough.assumptions.holdings_coverage_pct)}%</p>
+          </div>
+        ) : (
+          <p className="text-sm text-[#7086a1]">{t.noResult}</p>
+        )}
       </div>
     </section>
   )

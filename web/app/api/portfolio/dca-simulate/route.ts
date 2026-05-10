@@ -96,6 +96,19 @@ function pickEffectivePreset(requested: DcaPeriodPreset, rows: EtfMetaRow[]) {
   return null
 }
 
+function pickEffectivePresetForOne(requested: DcaPeriodPreset, inceptionDate: string | null): DcaPeriodPreset | null {
+  if (!inceptionDate) return null
+  const now = new Date()
+  const years = fullYearsBetween(inceptionDate, now)
+  if (years == null) return null
+  const requestedIndex = PRESET_ORDER.indexOf(requested)
+  for (let i = requestedIndex; i < PRESET_ORDER.length; i += 1) {
+    const candidate = PRESET_ORDER[i]
+    if (years >= PRESET_YEARS[candidate]) return candidate
+  }
+  return null
+}
+
 async function fetchPrices(symbol: string, startDate: string, endDate: string): Promise<PriceRow[]> {
   const rows: PriceRow[] = []
 
@@ -217,11 +230,12 @@ export async function POST(request: Request) {
     requestedPreset = input.period_mode
     const effectivePreset = pickEffectivePreset(input.period_mode, etfRows)
     if (!effectivePreset) {
-      return NextResponse.json({ error: 'No common period available for selected ETFs' }, { status: 422 })
+      usedPreset = null
+    } else {
+      usedPreset = effectivePreset
     }
-    usedPreset = effectivePreset
-    const years = PRESET_YEARS[effectivePreset]
     endDate = now.toISOString().slice(0, 10)
+    const years = PRESET_YEARS[input.period_mode]
     const start = new Date(now)
     start.setUTCFullYear(start.getUTCFullYear() - years)
     startDate = start.toISOString().slice(0, 10)
@@ -235,6 +249,11 @@ export async function POST(request: Request) {
     monthly_buy_count: number
     first_buy_date: string | null
     last_price_date: string | null
+    period_requested: DcaPeriodPreset | null
+    period_used: DcaPeriodPreset | null
+    used_start_date: string | null
+    used_end_date: string | null
+    downgraded: boolean
   }>
 
   let totalInvested = 0
@@ -242,7 +261,23 @@ export async function POST(request: Request) {
   let totalShares = 0
 
   for (const symbol of symbols) {
-    const prices = await fetchPrices(symbol, startDate, endDate)
+    const meta = etfRows.find((row) => row.symbol === symbol)
+    let symbolRequestedPreset: DcaPeriodPreset | null = requestedPreset
+    let symbolUsedPreset: DcaPeriodPreset | null = null
+    let symbolStartDate = startDate
+    let symbolEndDate = endDate
+
+    if (requestedPreset) {
+      symbolUsedPreset = pickEffectivePresetForOne(requestedPreset, meta?.inception_date ?? null)
+      if (symbolUsedPreset) {
+        const years = PRESET_YEARS[symbolUsedPreset]
+        const start = new Date(now)
+        start.setUTCFullYear(start.getUTCFullYear() - years)
+        symbolStartDate = start.toISOString().slice(0, 10)
+      }
+    }
+
+    const prices = await fetchPrices(symbol, symbolStartDate, symbolEndDate)
     if (prices.length === 0) {
       perSymbol.push({
         symbol,
@@ -252,6 +287,11 @@ export async function POST(request: Request) {
         monthly_buy_count: 0,
         first_buy_date: null,
         last_price_date: null,
+        period_requested: symbolRequestedPreset,
+        period_used: symbolUsedPreset,
+        used_start_date: symbolStartDate,
+        used_end_date: symbolEndDate,
+        downgraded: symbolRequestedPreset != null && symbolUsedPreset != null && symbolRequestedPreset !== symbolUsedPreset,
       })
       continue
     }
@@ -293,6 +333,11 @@ export async function POST(request: Request) {
       monthly_buy_count: buyCount,
       first_buy_date: firstBuyDate,
       last_price_date: lastPrice.trade_date,
+      period_requested: symbolRequestedPreset,
+      period_used: symbolUsedPreset,
+      used_start_date: symbolStartDate,
+      used_end_date: symbolEndDate,
+      downgraded: symbolRequestedPreset != null && symbolUsedPreset != null && symbolRequestedPreset !== symbolUsedPreset,
     })
   }
 
@@ -302,7 +347,7 @@ export async function POST(request: Request) {
         period_mode_requested: input.period_mode,
         period_preset_requested: requestedPreset,
         period_preset_used: usedPreset,
-        downgraded: requestedPreset != null && usedPreset != null && requestedPreset !== usedPreset,
+        downgraded: requestedPreset != null && perSymbol.some((row) => row.downgraded),
         start_date: startDate,
         end_date: endDate,
         monthly_shares_per_etf: null,
