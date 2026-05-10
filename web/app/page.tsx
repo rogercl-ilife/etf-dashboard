@@ -4,31 +4,33 @@ import { useEffect, useState } from 'react'
 import EtfList from '@/app/components/etf-list'
 import InvestmentPersonality from '@/app/components/investment-personality'
 import PortfolioBuilder from '@/app/components/portfolio-builder'
+import DcaSimulator from '@/app/components/dca-simulator'
 import { useLanguage, type Language } from '@/app/components/language-context'
 
 const STORAGE_KEY = 'etf-home-section-state-v1'
 
-function getInitialOpenState(): { portfolioOpen: boolean; personalityOpen: boolean; listOpen: boolean } {
+function getInitialOpenState(): { portfolioOpen: boolean; dcaOpen: boolean; personalityOpen: boolean; listOpen: boolean } {
   if (typeof window === 'undefined') {
-    return { portfolioOpen: true, personalityOpen: true, listOpen: true }
+    return { portfolioOpen: true, dcaOpen: true, personalityOpen: true, listOpen: true }
   }
 
   const fallbackListOpen = window.innerWidth >= 640
   const raw = window.localStorage.getItem(STORAGE_KEY)
 
   if (!raw) {
-    return { portfolioOpen: true, personalityOpen: true, listOpen: fallbackListOpen }
+    return { portfolioOpen: true, dcaOpen: true, personalityOpen: true, listOpen: fallbackListOpen }
   }
 
   try {
-    const parsed = JSON.parse(raw) as { portfolioOpen?: boolean; personalityOpen?: boolean; listOpen?: boolean }
+    const parsed = JSON.parse(raw) as { portfolioOpen?: boolean; dcaOpen?: boolean; personalityOpen?: boolean; listOpen?: boolean }
     return {
       portfolioOpen: parsed.portfolioOpen ?? true,
+      dcaOpen: parsed.dcaOpen ?? true,
       personalityOpen: parsed.personalityOpen ?? true,
       listOpen: parsed.listOpen ?? fallbackListOpen,
     }
   } catch {
-    return { portfolioOpen: true, personalityOpen: true, listOpen: fallbackListOpen }
+    return { portfolioOpen: true, dcaOpen: true, personalityOpen: true, listOpen: fallbackListOpen }
   }
 }
 
@@ -45,6 +47,10 @@ const TEXT: Record<
       summary: string
     }
     portfolio: {
+      title: string
+      summary: string
+    }
+    dca: {
       title: string
       summary: string
     }
@@ -68,6 +74,10 @@ const TEXT: Record<
       title: 'Portfolio Planner',
       summary: 'Select ETFs, set target weights, and view look-through risk.',
     },
+    dca: {
+      title: 'DCA Simulator',
+      summary: 'Configure monthly share purchases in a separate backtest zone.',
+    },
     toggle: {
       expand: 'Expand',
       collapse: 'Collapse',
@@ -86,6 +96,10 @@ const TEXT: Record<
     portfolio: {
       title: '投資組合規劃',
       summary: '勾選 ETF、設定權重，查看報酬與穿透風險。',
+    },
+    dca: {
+      title: '定投試算區',
+      summary: '獨立設定每月買入股數並回測定投結果。',
     },
     toggle: {
       expand: '展開',
@@ -106,6 +120,10 @@ const TEXT: Record<
       title: '投资组合规划',
       summary: '勾选 ETF、设置权重，查看收益与穿透风险。',
     },
+    dca: {
+      title: '定投试算区',
+      summary: '独立设置每月买入股数并回测定投结果。',
+    },
     toggle: {
       expand: '展开',
       collapse: '收起',
@@ -118,6 +136,7 @@ export default function Home() {
   const t = TEXT[language]
   const [openState, setOpenState] = useState(getInitialOpenState)
   const portfolioOpen = openState.portfolioOpen
+  const dcaOpen = openState.dcaOpen
   const personalityOpen = openState.personalityOpen
   const listOpen = openState.listOpen
 
@@ -126,11 +145,12 @@ export default function Home() {
       STORAGE_KEY,
       JSON.stringify({
         portfolioOpen,
+        dcaOpen,
         personalityOpen,
         listOpen,
       }),
     )
-  }, [portfolioOpen, personalityOpen, listOpen])
+  }, [portfolioOpen, dcaOpen, personalityOpen, listOpen])
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
@@ -173,6 +193,47 @@ export default function Home() {
         >
           <div className="min-h-0 overflow-hidden px-2 pb-2 sm:px-3 sm:pb-3">
             <PortfolioBuilder />
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-3xl border border-[#d6e0ea] bg-[#f9fbfe]/75 shadow-[0_6px_22px_rgba(15,39,71,0.08)]">
+        <button
+          type="button"
+          onClick={() =>
+            setOpenState((prev) => ({
+              ...prev,
+              dcaOpen: !prev.dcaOpen,
+            }))
+          }
+          aria-expanded={dcaOpen}
+          aria-controls="dca-panel"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left sm:px-6"
+        >
+          <div>
+            <p className="text-lg font-semibold text-[#0B1F3A] sm:text-xl">{t.dca.title}</p>
+            <p className="text-xs text-[#627792] sm:text-sm">{t.dca.summary}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-[#c6d3e2] bg-white px-3 py-1 text-xs font-semibold text-[#2a4466]">
+              {dcaOpen ? t.toggle.collapse : t.toggle.expand}
+            </span>
+            <span
+              aria-hidden
+              className={`text-lg leading-none text-[#38577d] transition-transform duration-200 ${dcaOpen ? 'rotate-180' : ''}`}
+            >
+              ⌄
+            </span>
+          </div>
+        </button>
+        <div
+          id="dca-panel"
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ${
+            dcaOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden px-2 pb-2 sm:px-3 sm:pb-3">
+            <DcaSimulator />
           </div>
         </div>
       </section>
